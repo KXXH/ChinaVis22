@@ -8,15 +8,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vueuse/core": "^8.5.0",
+    "animate.css": "^4.1.1",
     "d3": "^7.4.4",
     "naive-ui": "^2.29.0",
+    "pinia": "^2.0.14",
     "vite-plugin-windicss": "^1.8.4",
     "vue": "^3.2.25",
     "windicss": "^3.5.4"
   },
   "devDependencies": {
+    "@iconify/json": "^2.1.48",
     "@vitejs/plugin-vue": "^2.3.3",
     "@vitejs/plugin-vue-jsx": "^1.3.10",
+    "@windicss/plugin-scrollbar": "^1.2.3",
+    "unplugin-icons": "^0.14.3",
     "vite": "^2.9.9"
   }
 }
