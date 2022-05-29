@@ -11,8 +11,11 @@
     "@vueuse/core": "^8.5.0",
     "animate.css": "^4.1.1",
     "d3": "^7.4.4",
+    "jdbscan": "^1.0.0",
     "naive-ui": "^2.29.0",
     "pinia": "^2.0.14",
+    "pixi-viewport": "^4.34.4",
+    "pixi.js": "^6.3.2",
     "vite-plugin-windicss": "^1.8.4",
     "vue": "^3.2.25",
     "windicss": "^3.5.4"

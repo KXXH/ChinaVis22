@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 export const viewStore = defineStore("view", {
-    state:()=>({
+    state: ()=>({
         nodeLinkOn:true,
         matrixOn:true,
         brushOn:false,
