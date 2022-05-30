@@ -1,17 +1,42 @@
 <template>
-    <div ref="el" @wheel="handleZoom" />
+    <div ref="el" />
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport'
 import { useElementSize, watchOnce, useTransition, TransitionPresets } from '@vueuse/core';
+import _ from "lodash";
 import * as d3 from "d3";
 import { useMagicKeys, logicOr } from '@vueuse/core'
 
 import jDBSCAN from "jdbscan";
-console.log("dbscan", jDBSCAN)
+import createGraph from "ngraph.graph";
+import createWhisper from "ngraph.cw";
+import detectClusters from "ngraph.louvain";
+
+// basic settings
+
+// node line width
+const NodeLineWidth = 1.5;
+// hull line width
+const HullLineWidth = 3;
+// black industry color
+const BlackIndustryColor = 0xfb7185;
+
+
+// setup layer opacity
+const hullOpacity = d3.scaleLog()
+    .domain([0.5, 2])
+    .range([0.8, 0.1])
+    .clamp(true);
+
+const nodeLinkOpacity = d3.scalePow()
+    .domain([0.0001, 2])
+    .range([0, 1])
+    .clamp(true);
+
 
 //component setup
 const el = ref();
@@ -35,7 +60,11 @@ const props = defineProps({
     sizeRange: {
         type: Array
     },
-    brush: Boolean
+    brush: Boolean,
+    selectedNodes:{
+        type: Set,
+        default: ()=>new Set()
+    }
 });
 const width = 400;
 const height = 400;
@@ -46,67 +75,37 @@ const app = new PIXI.Application({
     width, height, backgroundColor: 0xffffff, resolution: window.devicePixelRatio || 1,
     antialias: true
 });
+// viewport zoom and drag
 const container = new Viewport({
     interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
 })
-
+container
+    .drag()
+    .pinch()
+    .wheel({
+        smooth: 10,
+        percent: 0.5
+    })
+    .decelerate()
 // const container = new PIXI.Container();
 app.stage.addChild(container);
 
+// two layers: node-link layer and circle layer
+// create layer
+const nodeLinkLayer = new PIXI.Container();
+nodeLinkLayer.alpha = nodeLinkOpacity(1);
+const hullLayer = new PIXI.Container();
+hullLayer.alpha = hullOpacity(1);
 
+container.addChild(nodeLinkLayer);
+container.addChild(hullLayer);
+
+
+// brush
 const lastPos = {
     x: 0,
     y: 0
 }
-
-
-// zoom setup
-function calScaleMtx(k, x0, y0, mtx) {
-    let tmtx = mtx.clone();
-    const newMtx = new PIXI.Matrix(k, 0, 0, k, x0 - k * x0, y0 - k * y0);
-    return tmtx.prepend(newMtx);
-}
-
-
-function handleZoom(e) {
-    const { deltaY } = e;
-    let { offsetX, offsetY } = e;
-    const transformMatrix = calScaleMtx(deltaY < 0 ? 3 / 2 : 2 / 3, offsetX, offsetY, container.transform.worldTransform);
-    container.transform.setFromMatrix(transformMatrix);
-}
-
-
-
-// drag setup
-let dragging = false;
-function handleDragStart(e) {
-    lastPos.x = e.data.global.x;
-    lastPos.y = e.data.global.y;
-    dragging = true;
-}
-function handleDragMove(e) {
-    if (dragging === true) {
-        let { x, y } = e.data.global;
-
-        let dx = x - lastPos.x;
-        let dy = y - lastPos.y;
-
-        const newTransformMatrix = container.transform.worldTransform.clone();
-        container.x += dx;
-        container.y += dy;
-        newTransformMatrix.tx += dx;
-        newTransformMatrix.ty += dy;
-
-        lastPos.x = x;
-        lastPos.y = y;
-    }
-}
-function handleDragEnd(e) {
-    dragging = false;
-}
-
-
-// brush
 const { ctrl, alt } = useMagicKeys();  // ctrl: add nodes; alt: remove nodes
 const magicKeysOn = logicOr(ctrl, alt);
 
@@ -159,6 +158,14 @@ function handleBrushEnd(e) {
     brushing = false;
     brushRect.clear();
 }
+watch(() => props.brush, () => {
+    if (props.brush) {
+        container.plugins.pause('drag')
+    }
+    else {
+        container.plugins.resume('drag')
+    }
+})
 
 
 //interaction handle
@@ -167,7 +174,7 @@ app.renderer.plugins.interaction.on("mousedown", e => {
         handleBrushStart(e);
     }
     else {
-        handleDragStart(e);
+        // handleDragStart(e);
     }
 })
 app.renderer.plugins.interaction.on("mousemove", e => {
@@ -175,15 +182,15 @@ app.renderer.plugins.interaction.on("mousemove", e => {
         handleBrushMove(e);
     }
     else {
-        handleDragMove(e);
+        // handleDragMove(e);
     }
 })
 app.renderer.plugins.interaction.on("mouseup", e => {
-    handleDragEnd(e);
+    // handleDragEnd(e);
     handleBrushEnd(e);
 })
 app.renderer.plugins.interaction.on("mouseout", e => {
-    handleDragEnd(e);
+    // handleDragEnd(e);
     handleBrushEnd(e);
 })
 
@@ -214,10 +221,15 @@ function calSize(s) {
 
 
 nodes.forEach(node => {
-    node.gfx.lineStyle(1.5, 0xFFFFFF);
+    if (node.industry != "[]") {
+        node.gfx.lineStyle(NodeLineWidth, 0xfb7185);
+    }
+    else {
+        node.gfx.lineStyle(NodeLineWidth, 0xFFFFFF);
+    }
     node.gfx.beginFill(props.colorMap(node));
     node.gfx.drawCircle(0, 0, calSize(node.size));
-    container.addChildAt(node.gfx, 0);
+    nodeLinkLayer.addChildAt(node.gfx, 0);
 })
 
 let links = props.links.map(item => {
@@ -228,7 +240,7 @@ let links = props.links.map(item => {
 })
 
 let linkGfx = new PIXI.Graphics();
-container.addChildAt(linkGfx, 1);
+nodeLinkLayer.addChildAt(linkGfx, 1);
 
 
 // selection
@@ -263,35 +275,151 @@ function randomColor(i) {
     return color;
 }
 
+function hullCenter(points) {
+    return d3.polygonCentroid(points);
+}
+function minHullCircle(center, points) {
+    let r = 0;
+    for (const point of points) {
+        r = Math.max(Math.sqrt((point[0] - center[0]) ** 2 + (point[1] - center[1]) ** 2), r);
+    }
+    return r;
+}
+
+function cluster_detect(nodes, links) {
+    const g = createGraph();
+    nodes.forEach(n => g.addNode(n.id));
+    links.forEach(l => g.addLink(l.source.id, l.target.id));
+    var whisper = createWhisper(g);
+    var requiredChangeRate = 0; // 0 is complete convergence
+    while (whisper.getChangeRate() > requiredChangeRate) {
+        whisper.step();
+    }
+    return nodes.map(n=>whisper.getClass(n.id));
+    // var clusters = detectClusters(g);
+    // return nodes.map(n=>clusters.getClass(n.id));
+}
+
 function handleForceStop() {
     // quadtree = d3.quadtree();
     // quadtree.addAll(nodes).x(i => i.x).y(i => i.y);
-    console.log(nodes);
+
+    // dbscan setup
     var dbscanner = jDBSCAN()
-        .eps(50)
+        .eps(75)
         .minPts(10)
         .distance('EUCLIDEAN')
         .data(nodes);
     var point_assignment_result = dbscanner();
-    var cluster_centers = dbscanner.getClusters();
-    console.log(point_assignment_result, cluster_centers)
-    nodes.forEach((node, i) => {
-        node.gfx.clear();
-        node.gfx.lineStyle(1.5, 0xFFFFFF);
-        node.gfx.beginFill(randomColor(point_assignment_result[i]));
-        node.gfx.drawCircle(0, 0, calSize(node.size));
-        node.gfx.position = new PIXI.Point(node.x, node.y);
-    })
-    console.log(mem)
+    // var point_assignment_result = cluster_detect(nodes, links);
+    // var cluster_centers = dbscanner.getClusters();
+    // console.log(point_assignment_result, cluster_centers)
+    // nodes.forEach((node, i) => {
+    //     node.gfx.clear();
+    //     node.gfx.lineStyle(1.5, 0xFFFFFF);
+    //     node.gfx.beginFill(randomColor(point_assignment_result[i]));
+    //     node.gfx.drawCircle(0, 0, calSize(node.size));
+    //     node.gfx.position = new PIXI.Point(node.x, node.y);
+    // })
+
+    // group nodes by cluster id
+    let clusters = _(nodes).map((node, i) => {
+        node.class = point_assignment_result[i];
+        return node;
+    }).groupBy(n => n.class).value();
+
+    // draw hull
+    for (const cluster_id in clusters) {
+        if (cluster_id == 0) continue;
+        // caculate polygon hull
+        const hull = d3.polygonHull(clusters[cluster_id].map(({ x, y }) => ([x, y])))
+        if (hull == null) continue;
+        // get polygon center
+        const center = hullCenter(hull);
+        // get the minimum outer circle
+        const r = minHullCircle(center, hull);
+        // each cluster is a container
+        const group = new PIXI.Container();
+        const gfx = new PIXI.Graphics();
+        // gfx.beginFill(randomColor(cluster_id));
+
+        clusters[cluster_id].gfx = group;
+        clusters[cluster_id].hull = hull;
+        clusters[cluster_id].circle = {
+            center, r
+        };
+        clusters[cluster_id].count = _(clusters[cluster_id]).groupBy(i => i.type).mapValues(i => i.length).value();
+        const total = _(clusters[cluster_id].count).values().sum();
+        clusters[cluster_id].industry = clusters[cluster_id].filter(i => i.industry != '[]').length;
+        // gfx.lineStyle(3, 0x4b5563);
+        gfx.beginFill(0xe5e7eb);
+
+        gfx.drawCircle(center[0], center[1], r);
+        gfx.endFill();
+
+        let startAngle = 0;
+        for (const type in clusters[cluster_id].count) {
+            gfx.lineStyle({
+                width: Math.min(15, r),
+                color: props.colorMap({ type }),
+                join: PIXI.LINE_JOIN.ROUND
+            });
+            const dAngle = 2 * Math.PI * (clusters[cluster_id].count[type] / total)
+            gfx.arc(...center, r, startAngle, startAngle + dAngle);
+            startAngle += dAngle;
+        }
+
+        gfx.interactive = true;
+        gfx.on("click", e => {
+            const k = container.findFit(2 * r + 10, 2 * r + 10);
+            container.animate({
+                position: new PIXI.Point(center[0], center[1]),
+                scale: k,
+                callbackOnComplete: () => {
+                    onZoom();
+                    container.setChildIndex(hullLayer, 0);
+                },
+                ease: "easeInOutCubic"
+            });
+        })
+
+        const gfx2 = new PIXI.Graphics()
+        gfx2.lineStyle(0);
+        gfx2.beginFill(BlackIndustryColor, 0.8);
+
+        gfx2.drawCircle(center[0], center[1], r * (clusters[cluster_id].industry / clusters[cluster_id].length));
+        gfx2.endFill();
+        // gfx2.filters = [new PIXI.filters.BlurFilter()]
+
+        group.addChild(gfx);
+        group.addChild(gfx2);
+        hullLayer.addChild(group);
+    }
 }
 
+// change layer opacity when zoom
+const onZoom = () => {
+    const k = container.transform.worldTransform.a;
+    hullLayer.alpha = hullOpacity(k);
+    nodeLinkLayer.alpha = nodeLinkOpacity(k);
+    if (hullLayer.alpha == hullOpacity.range()[1]) {
+        container.setChildIndex(hullLayer, 0);
+    }
+    else {
+        container.setChildIndex(hullLayer, 1);
+    }
+}
+
+container.on("zoomed", onZoom)
 
 // initial drawing
 let stopped = false;
-function initDraw(width, height) {
+function initDraw() {
     // create canvas
     el.value.appendChild(app.view);
     app.resizeTo = el.value;
+    const { height, width } = app.screen;
+    container.resize(width, height)
     // simulation initial data
     simulation.nodes(nodes).force('link').links(links);
     simulation.stop();
@@ -299,6 +427,7 @@ function initDraw(width, height) {
     //tick
     app.ticker.add((delta) => {
         const k = container.transform.worldTransform.a;
+
         if (simulation.alpha() >= simulation.alphaMin()) {
             simulation.tick();
         }
@@ -359,6 +488,6 @@ function initDraw(width, height) {
     });
 }
 
-onMounted(() => initDraw(width, height));
+onMounted(() => initDraw());
 
 </script>

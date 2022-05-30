@@ -122,6 +122,36 @@ const viewOpt = [
     {
         label: "maximum shown nodes",
         key: "maxNodes"
+    },
+    {
+        label: "layer",
+        key: "layer",
+        children: [
+            {
+                label: "community detection",
+                key: "community",
+                children: [
+                    {
+                        label: "CW Algorithm",
+                        key: "cw"
+                    },
+                    {
+                        label: "Louvain Algorithm",
+                        key: "louvain"
+                    }
+                ]
+            },
+            {
+                label: "spatial clustering",
+                key: "clustering",
+                children: [
+                    {
+                        label: "DBSCAN Algorithm",
+                        key: "dbscan"
+                    }
+                ]
+            }
+        ]
     }
 ];
 

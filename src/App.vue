@@ -41,6 +41,7 @@ const subgraphs = [
                 :brush="view_store.brushOn" 
                 :size="i=>i.betweenness"
                 :size-range="[5, 10]"
+                v-model:selected-nodes="view_store.selectedNodes"
               />
             </ElementContainerVue>
           </div>

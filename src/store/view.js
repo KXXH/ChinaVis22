@@ -5,5 +5,6 @@ export const viewStore = defineStore("view", {
         nodeLinkOn:true,
         matrixOn:true,
         brushOn:false,
+        selectedNodes: new Set()
     })
 })
