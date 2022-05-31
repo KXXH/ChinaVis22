@@ -59,7 +59,8 @@ const props = defineProps({
 const emits = defineEmits([
     "update:nodeLinkOn",
     "update:matrixOn",
-    "update:brushOn"
+    "update:brushOn",
+    "neighbors"
 ])
 
 const isNLOn = useVModel(props, "nodeLinkOn", emits);
@@ -93,6 +94,7 @@ const subgraphOpt = [
 function handleSelect(key) {
     switch (key) {
         case "brush": isBrushOn.value = !isBrushOn.value; break;
+        case "neighbors": emits("neighbors"); break;
     }
 }
 const selectOpt = [
@@ -107,7 +109,7 @@ const selectOpt = [
     },
     {
         label: "select neighbors",
-        key: "select neighbors"
+        key: "neighbors"
     },
     {
         label: "select 3-jump subgraph",

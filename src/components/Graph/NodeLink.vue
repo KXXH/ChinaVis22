@@ -6,13 +6,14 @@
 import { ref, onMounted, watch } from "vue";
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport'
-import { useElementSize, watchOnce, useTransition, TransitionPresets } from '@vueuse/core';
+import { useElementSize, watchOnce, useTransition, TransitionPresets, useVModel } from '@vueuse/core';
 import _ from "lodash";
 import * as d3 from "d3";
 import { useMagicKeys, logicOr } from '@vueuse/core'
 
 import jDBSCAN from "jdbscan";
-import createGraph from "ngraph.graph";
+// import createGraph from "ngraph.graph";
+import createGraph from "../../algorithms/createGraph.js";
 import createWhisper from "ngraph.cw";
 import detectClusters from "ngraph.louvain";
 
@@ -61,19 +62,23 @@ const props = defineProps({
         type: Array
     },
     brush: Boolean,
-    selectedNodes:{
+    selectedNodes: {
         type: Set,
-        default: ()=>new Set()
+        default: () => new Set()
     }
 });
+const emits = defineEmits(["update:selectedNodes"]);
 const width = 400;
 const height = 400;
 
+// build graph
+const graph = createGraph(props.nodes, props.links, n=>n.id, l=>l.source, l=>l.target);
 
 // pixi setup
 const app = new PIXI.Application({
     width, height, backgroundColor: 0xffffff, resolution: window.devicePixelRatio || 1,
-    antialias: true
+    antialias: true,
+    forceCanvas: false
 });
 // viewport zoom and drag
 const container = new Viewport({
@@ -88,17 +93,22 @@ container
     })
     .decelerate()
 // const container = new PIXI.Container();
+let dragging = false;
+container.on("drag-start", () => dragging = true);
+container.on("drag-end", () => dragging = false);
 app.stage.addChild(container);
 
-// two layers: node-link layer and circle layer
+// three layers: node-link layer, circle layer, selection layer
 // create layer
 const nodeLinkLayer = new PIXI.Container();
 nodeLinkLayer.alpha = nodeLinkOpacity(1);
 const hullLayer = new PIXI.Container();
 hullLayer.alpha = hullOpacity(1);
+const selectionLayer = new PIXI.Container();
 
 container.addChild(nodeLinkLayer);
 container.addChild(hullLayer);
+container.addChild(selectionLayer);
 
 
 // brush
@@ -111,7 +121,8 @@ const magicKeysOn = logicOr(ctrl, alt);
 
 const brushRect = new PIXI.Graphics();
 app.stage.addChild(brushRect);
-const selectedNodes = new Set();
+// const selectedNodes = new Set();
+const selectedNodes = useVModel(props, "selectedNodes", emits);
 const rectPos = {
     x: 0,
     y: 0,
@@ -123,7 +134,8 @@ let brushing = false;
 function handleBrushStart(e) {
     // if magic keys is not pressed, clear selection
     if (!magicKeysOn.value) {
-        selectedNodes.clear();
+        selectedNodes.value.clear();
+        // selectedNodes.value = new Set();
     }
     rectPos.x = rectPos.y = 0;
     rectPos.w = rectPos.h = 0;
@@ -208,6 +220,7 @@ let nodes = props.nodes.map(item => {
         ...item
     };
     node.gfx = new PIXI.Graphics();
+    node.selectGfx = new PIXI.Graphics();
     node.size = props.size(node);
     return node;
 });
@@ -230,6 +243,7 @@ nodes.forEach(node => {
     node.gfx.beginFill(props.colorMap(node));
     node.gfx.drawCircle(0, 0, calSize(node.size));
     nodeLinkLayer.addChildAt(node.gfx, 0);
+    selectionLayer.addChildAt(node.selectGfx, 0);
 })
 
 let links = props.links.map(item => {
@@ -244,6 +258,19 @@ nodeLinkLayer.addChildAt(linkGfx, 1);
 
 
 // selection
+watch(() => props.selectedNodes, (v) => {
+    nodes.forEach(node => {
+        node.selectGfx.clear();
+        if (v.has(node.id)) {
+            node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
+            node.selectGfx.beginFill(0x0000ff);
+            node.selectGfx.drawCircle(0, 0, calSize(node.size));
+            node.selectGfx.position = new PIXI.Point(node.x, node.y)
+        }
+    })
+},  {deep:true})
+
+
 function search(quadtree, [[x0, y0], [x3, y3]], cb) {
     quadtree.visit((node, x1, y1, x2, y2) => {
         if (!node.length) {
@@ -287,15 +314,15 @@ function minHullCircle(center, points) {
 }
 
 function cluster_detect(nodes, links) {
-    const g = createGraph();
-    nodes.forEach(n => g.addNode(n.id));
-    links.forEach(l => g.addLink(l.source.id, l.target.id));
-    var whisper = createWhisper(g);
+    // const g = createGraph();
+    // nodes.forEach(n => g.addNode(n.id));
+    // links.forEach(l => g.addLink(l.source.id, l.target.id));
+    var whisper = createWhisper(graph);
     var requiredChangeRate = 0; // 0 is complete convergence
     while (whisper.getChangeRate() > requiredChangeRate) {
         whisper.step();
     }
-    return nodes.map(n=>whisper.getClass(n.id));
+    return nodes.map(n => whisper.getClass(n.id));
     // var clusters = detectClusters(g);
     // return nodes.map(n=>clusters.getClass(n.id));
 }
@@ -370,7 +397,10 @@ function handleForceStop() {
         }
 
         gfx.interactive = true;
-        gfx.on("click", e => {
+        gfx.on("pointerup", e => {
+            if (dragging || brushing) return;
+
+
             const k = container.findFit(2 * r + 10, 2 * r + 10);
             container.animate({
                 position: new PIXI.Point(center[0], center[1]),
@@ -462,22 +492,22 @@ function initDraw() {
             if (brushing) {
                 if (x > tx1 && y > ty1 && x < tx2 && y < ty2) {
                     if (alt.value) {
-                        selectedNodes.delete(id);
+                        selectedNodes.value.delete(id);
                     }
                     else {
-                        selectedNodes.add(id);
+                        selectedNodes.value.add(id);
                     }
                 }
                 else {
                     if (!alt.value && !ctrl.value) {
-                        selectedNodes.delete(id);
+                        selectedNodes.value.delete(id);
                     }
                 }
             }
-            if (selectedNodes.has(id)) {
-                const color = new PIXI.filters.ColorMatrixFilter();
-                color.negative();
-                gfx.filters = [color];
+            if (selectedNodes.value.has(id)) {
+                // const color = new PIXI.filters.ColorMatrixFilter();
+                // color.negative();
+                // gfx.filters = [color];
             }
             else {
                 gfx.filters = [];

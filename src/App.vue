@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
+import { useMagicKeys } from '@vueuse/core'
 import { NConfigProvider, NScrollbar } from "naive-ui";
 import { viewStore } from "./store/view";
 
@@ -14,6 +15,12 @@ import Subgraph from "./components/Motif/Subgraph.vue";
 import data from "./assets/graph.json";
 
 import color from "./config/colormap.js"
+import createGraph from "./algorithms/createGraph";
+import neighbors from "./algorithms/neighbors";
+
+document.onkeydown=(e)=>{
+  e.preventDefault();
+}
 
 const view_store = viewStore();
 
@@ -21,6 +28,17 @@ const subgraphs = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 ]
 
+const g = createGraph(data.nodes, data.links, n=>n.id, l=>l.source, l=>l.target);
+function handleNeighbor(){
+    view_store.selectedNodes=neighbors(g, view_store.selectedNodes, n=>n)
+}
+
+const {Ctrl_E} = useMagicKeys();
+watch(Ctrl_E, v=>{
+  if(v){
+    handleNeighbor()
+  }
+})
 </script>
 
 <template>
@@ -28,7 +46,7 @@ const subgraphs = [
     <div id="container">
       <header>
         <MenuBar w="1/1" class="border-b border-grey-400" v-model:nodeLinkOn="view_store.nodeLinkOn"
-          v-model:matrixOn="view_store.matrixOn" v-model:brushOn="view_store.brushOn" />
+          v-model:matrixOn="view_store.matrixOn" v-model:brushOn="view_store.brushOn" @neighbors="handleNeighbor"/>
       </header>
       <div class="flex flex-1 gap-2" px="4" py="2">
         <Transition name="flex-left">
