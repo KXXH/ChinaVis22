@@ -1,166 +1,229 @@
-export default function useBrush(){
-    let brushing = false;
-    let rectPos = {
+import * as PIXI from 'pixi.js';
+import * as d3 from "d3";
+
+
+export default class useBrush{
+    brushing = false;
+    rectPos = {
         x:0,
         y:0,
         w:0,
         h:0
     }
-    let selectedNodes = new Set();
-    let currentSelected = new Set();
-    let _x = i=>i.x;
-    let _y = i=>i.y;
-    let _nodes = [];
-    let _quadtree = null;
-    let _stop = false;
-    let _ctrl = false;
-    let _alt = true;
-    let _container = null;
-    let _onBrush = ()=>{};
-    function handleBrushStart(e) {
+    lastPos = {
+        x: 0,
+        y: 0,
+    }
+    selectedNodes = new Map();
+    currentSelected = new Map();
+    _x = i=>i.x;
+    _y = i=>i.y;
+    _nodes = [];
+    _quadtree = null;
+    _stop = false;
+    _ctrl = false;
+    _alt = false;
+    _container = null;
+    _onBrush = ()=>{};
+    _brushRect = new PIXI.Graphics();
+    _brushLayer = new PIXI.Container();
+    selectionLayer = new PIXI.Container();
+
+    _onEnter = ()=>{};
+    _onExit = ()=>{};
+
+    constructor(){
+        this._brushLayer.addChild(this._brushRect);
+    }
+
+    handleBrushStart = (e) => {
         // if magic keys is not pressed, clear selection
-        if (!(_alt||_ctrl)) {
-            selectedNodes.clear();
+        if (!(this._alt||this._ctrl)) {
+            for(const [id, node] of this.selectedNodes){
+                this._onExit(node, this.selectionLayer);
+            }
+            this.selectedNodes.clear();
             // selectedNodes.= new Set();
         }
-        rectPos.x = rectPos.y = 0;
-        rectPos.w = rectPos.h = 0;
-        lastPos.x = e.data.global.x;
-        lastPos.y = e.data.global.y;
-        currentSelected = new Set();
-        brushing = true;
+        this.rectPos.x = this.rectPos.y = 0;
+        this.rectPos.w = this.rectPos.h = 0;
+        this.lastPos.x = e.data.global.x;
+        this.lastPos.y = e.data.global.y;
+        this.currentSelected.clear();
+        this.brushing = true;
     }
-    function handleBrushMove(e) {
-        if (brushing) {
+    handleBrushMove = (e) => {
+        if (this.brushing) {
             let { x, y } = e.data.global;
 
-            let newX = Math.min(lastPos.x, x);
-            let newY = Math.min(lastPos.y, y);
+            let newX = Math.min(this.lastPos.x, x);
+            let newY = Math.min(this.lastPos.y, y);
 
-            let w = Math.abs(x - lastPos.x);
-            let h = Math.abs(y - lastPos.y);
+            let w = Math.abs(x - this.lastPos.x);
+            let h = Math.abs(y - this.lastPos.y);
 
-            const { x: tx1, y: ty1 } = _container.transform.worldTransform.applyInverse(new PIXI.Point(newX, newY));
-            const { x: tx2, y: ty2 } = _container.transform.worldTransform.applyInverse(new PIXI.Point(newX + w, newY + h));
-            searchCb(quadtree, [[rectPos.x, rectPos.y], [rectPos.x + rectPos.w, rectPos.y + rectPos.h]], (n) => currentSelected.delete(n.id));
-            searchCb(quadtree, [[tx1, ty1], [tx2, ty2]], (n) => currentSelected.add(n.id));
+            const { x: tx1, y: ty1 } = this._container.transform.worldTransform.applyInverse(new PIXI.Point(newX, newY));
+            const { x: tx2, y: ty2 } = this._container.transform.worldTransform.applyInverse(new PIXI.Point(newX + w, newY + h));
+            this.searchCb(this.rectPos.x, this.rectPos.y, this.rectPos.x + this.rectPos.w, this.rectPos.y + this.rectPos.h, (n) => {
+                this.currentSelected.delete(n.id);
+                this._onExit(n, this.selectionLayer);
+            });
+            this.searchCb(tx1, ty1, tx2, ty2, (n) => {
+                this.currentSelected.set(n.id, n)
+                this._onEnter(n, this.selectionLayer);
+            });
 
-            rectPos.x = newX;
-            rectPos.y = newY;
-            rectPos.w = w;
-            rectPos.h = h;
+            this.rectPos.x = newX;
+            this.rectPos.y = newY;
+            this.rectPos.w = w;
+            this.rectPos.h = h;
 
-            brushRect.clear();
-            brushRect.lineStyle(1, 0x2563eb);
-            brushRect.beginFill(0x60a5fa, 0.5);
-            brushRect.drawRect(rectPos.x, rectPos.y, rectPos.w, rectPos.h);
+            this._brushRect.clear();
+            this._brushRect.lineStyle(1, 0x2563eb);
+            this._brushRect.beginFill(0x60a5fa, 0.5);
+            this._brushRect.drawRect(this.rectPos.x, this.rectPos.y, this.rectPos.w, this.rectPos.h);
 
-            onBrush(rectPos, this);
+            this._onBrush(this.rectPos, this);
         }
     }
-    function handleBrushEnd(e) {
-        rectPos.x = rectPos.y = 0;
-        rectPos.w = rectPos.h = 0;
-        brushing = false;
-
-        // merge
+    handleBrushEnd = (e) => {
+        this.rectPos.x = this.rectPos.y = 0;
+        this.rectPos.w = this.rectPos.h = 0;
+        this.brushing = false;
+        this.selectedNodes = this.selection;
+        this._brushRect.clear();
+    }
+    get selection(){
+        let res = new Map(this.selectedNodes);
         // -
-        if(_alt){
-            for(const item of currentSelected){
-                selectedNodes.delete(item)
+        if(this._alt){
+            for (const [id, n] of this.currentSelected){
+                this.selectedNodes.delete(id)
             }
         }
         // +
-        else if(_ctrl){
-            for(const item of currentSelected){
-                selectedNodes.add(item)
+        else if(this._ctrl){
+            for(const [id, n] of this.currentSelected){
+                this.selectedNodes.set(id, n)
             }
         }
         // =
-        else{
-            selectedNodes = currentSelected;
+        else {
+            res = this.currentSelected;
         }
-        brushRect.clear();
+        return res;
     }
-    function nodes(data){
-        if(data===null) return nodes;
-        _nodes = data;
-        if(quadtree()!==null){
-            quadtree(true);
-        }
-        return this;
-    }
-    function x(fx){
-        if(fx===null) return _x;
-        _x = fx;
-        return this;
-    }
-    function y(fy){
-        if (fy === null) return _y;
-        _y = fy;
-        return this;
-    }
-    function quadtree(status){
-        if(status===null) return _quadtree;
+    quadtree(status){
+        if(status==null) return this._quadtree;
         if(status){
-            _quadtree = d3
+            this._quadtree = d3
                 .quadtree()
-                .addAll(_nodes)
-                .x(x())
-                .y(y())
+                .addAll(this._nodes)
+                .x(this.x())
+                .y(this.y())
         }
         else{
-            _quadtree = null;
+            this._quadtree = null;
         }
     }
-    function searchCb(x0, y0, x3, y3){
-        const qt = quadtree();
-        
-        quadtree.visit((node, x1, y1, x2, y2) => {
-            if (!node.length) {
-                do {
-                    const { data: d } = node;
-                    const { x, y } = d;
-                    // d.scanned = true;
-                    if (x >= x0 && x < x3 && y >= y0 && y < y3) {
-                        cb(d)
-                    }
-                    // d.selected = x >= x0 && x < x3 && y >= y0 && y < y3;
-                } while ((node = node.next));
+    searchCb(x0, y0, x3, y3, cb){
+        const qt = this.quadtree();
+        if(qt){
+            qt.visit((node, x1, y1, x2, y2) => {
+                if (!node.length) {
+                    do {
+                        const { data: d } = node;
+                        const { x, y } = d;
+                        // d.scanned = true;
+                        if (x >= x0 && x < x3 && y >= y0 && y < y3) {
+                            cb(d)
+                        }
+                        // d.selected = x >= x0 && x < x3 && y >= y0 && y < y3;
+                    } while ((node = node.next));
+                }
+                return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0;
+            });
+        }
+        else{
+            for(const node of this.nodes()){
+                const x = this._x(node)
+                const y = this._y(node)
+                if (x >= x0 && x < x3 && y >= y0 && y < y3) {
+                    cb(node)
+                }
             }
-            return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0;
-        });
+        }
     }
-    function stop(){
-        _stop=true;
-        _container.off("mousedown", handleBrushStart);
-        _container.off("mousemove", handleBrushMove);
-        _container.off("mouseup", handleBrushEnd);
+    nodes(data) {
+        if (data == null) return this._nodes;
+        this._nodes = data;
+        this._nodes.forEach(n => {
+            n.selectGfx = new PIXI.Graphics();
+            this.selectionLayer.addChildAt(n.selectGfx, 0);
+        })
+        if (this.quadtree() != null) {
+            this.quadtree(true);
+        }
         return this;
     }
-    function start(){
-        _stop=false;
-        _container.on("mousedown", handleBrushStart);
-        _container.on("mousemove", handleBrushMove);
-        _container.on("mouseup", handleBrushEnd);
+    x(fx) {
+        if (fx == null) return this._x;
+        this._x = fx;
         return this;
     }
-    function alt(v){
-        _alt=v;
+    y(fy) {
+        if (fy == null) return this._y;
+        this._y = fy;
         return this;
     }
-    function ctrl(v){
-        _ctrl=v;
+    stop(){
+        this._stop=true;
+        this._container.off("mousedown", this.handleBrushStart);
+        this._container.off("mousemove", this.handleBrushMove);
+        this._container.off("mouseup", this.handleBrushEnd);
+        this._container.off("mouseleave", this.handleBrushEnd);
         return this;
     }
-    function container(c){
-        if(c===null) return _container;
-        _container=container;
+    start(){
+        this._stop=false;
+        this._container.on("mousedown", this.handleBrushStart);
+        this._container.on("mousemove", this.handleBrushMove);
+        this._container.on("mouseup", this.handleBrushEnd);
+        this._container.on("mouseleave", this.handleBrushEnd);
         return this;
     }
-    function onBrush(fn){
-        if(fn===null) return _onBrush;
-        _onBrush = fn;
+    alt(v){
+        this._alt=v;
         return this;
     }
+    ctrl(v){
+        this._ctrl=v;
+        return this;
+    }
+    app(a){
+        a.stage.addChildAt(this._brushLayer, a.stage.children.length);
+        return this;
+    }
+    container(c){
+        if(c==null) return this._container;
+        this._container=c;
+        this._container.addChildAt(this.selectionLayer, this._container.length)
+        return this;
+    }
+    onBrush(fn){
+        if(fn==null) return this._onBrush;
+        this._onBrush = fn;
+        return this;
+    }
+    onEnter(fn){
+        if (fn == null) return this._onEnter;
+        this._onEnter = fn;
+        return this;
+    }
+    onExit(fn) {
+        if (fn == null) return this._onExit;
+        this._onExit = fn;
+        return this;
+    }
+
 }

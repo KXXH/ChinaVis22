@@ -206,86 +206,6 @@ const rectPos = {
 };
 
 let brushing = false;
-function handleBrushStart(e) {
-    // if magic keys is not pressed, clear selection
-    if (!magicKeysOn.value) {
-        selectedNodes.value.clear();
-        // selectedNodes.value = new Set();
-    }
-    rectPos.x = rectPos.y = 0;
-    rectPos.w = rectPos.h = 0;
-    lastPos.x = e.data.global.x;
-    lastPos.y = e.data.global.y;
-    brushing = true;
-}
-function handleBrushMove(e) {
-    if (brushing) {
-        let { x, y } = e.data.global;
-
-        let newX = Math.min(lastPos.x, x);
-        let newY = Math.min(lastPos.y, y);
-
-        let w = Math.abs(x - lastPos.x);
-        let h = Math.abs(y - lastPos.y);
-
-        const { x: tx1, y: ty1 } = container.transform.worldTransform.applyInverse(new PIXI.Point(newX, newY));
-        const { x: tx2, y: ty2 } = container.transform.worldTransform.applyInverse(new PIXI.Point(newX+w, newY+h));
-        search(quadtree, [[rectPos.x, rectPos.y], [rectPos.x+rectPos.w, rectPos.y+rectPos.h]], (n)=>selectedNodes.value.delete(n.id));
-        search(quadtree, [[tx1, ty1], [tx2, ty2]], (n)=>selectedNodes.value.add(n.id));
-
-        rectPos.x = newX;
-        rectPos.y = newY;
-        rectPos.w = w;
-        rectPos.h = h;
-
-        brushRect.clear();
-        brushRect.lineStyle(1, 0x2563eb);
-        brushRect.beginFill(0x60a5fa, 0.5);
-        brushRect.drawRect(rectPos.x, rectPos.y, rectPos.w, rectPos.h);
-    }
-}
-function handleBrushEnd(e) {
-    rectPos.x = rectPos.y = 0;
-    rectPos.w = rectPos.h = 0;
-    brushing = false;
-    brushRect.clear();
-}
-watch(() => props.brush, () => {
-    if (props.brush) {
-        container.plugins.pause('drag')
-    }
-    else {
-        container.plugins.resume('drag')
-    }
-})
-
-
-//interaction handle
-app.renderer.plugins.interaction.on("mousedown", e => {
-    if (props.brush) {
-        handleBrushStart(e);
-    }
-    else {
-        // handleDragStart(e);
-    }
-})
-app.renderer.plugins.interaction.on("mousemove", e => {
-    if (props.brush) {
-        handleBrushMove(e);
-    }
-    else {
-        // handleDragMove(e);
-    }
-})
-app.renderer.plugins.interaction.on("mouseup", e => {
-    // handleDragEnd(e);
-    handleBrushEnd(e);
-})
-app.renderer.plugins.interaction.on("mouseout", e => {
-    // handleDragEnd(e);
-    handleBrushEnd(e);
-})
-
 
 // force setup
 const simulation = d3.forceSimulation()
@@ -294,16 +214,49 @@ const simulation = d3.forceSimulation()
     .force("charge", d3.forceManyBody())
     .force("center", d3.forceCenter(width / 2, height / 2));
 
-
+// brush
 let nodes = props.nodes.map(item => {
     let node = {
         ...item
     };
     node.gfx = new PIXI.Graphics();
-    node.selectGfx = new PIXI.Graphics();
+    // node.selectGfx = new PIXI.Graphics();
     node.size = props.size(node);
     return node;
 });
+
+const brush = new useBrush()
+    .app(app)
+    .container(container)
+    .nodes(nodes)
+    .onExit(n=>n.selectGfx.clear())
+    .onBrush(
+        () => {
+            console.log(brush.selection.size);
+            brush.selection.forEach((node)=>{
+                node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
+                node.selectGfx.beginFill(0x0000ff);
+                node.selectGfx.drawCircle(0, 0, calSize(node.size));
+                node.selectGfx.position = new PIXI.Point(node.x, node.y)
+            })
+        }
+    )
+    .stop();
+
+watch(() => props.brush, () => {
+    if (props.brush) {
+        container.plugins.pause('drag')
+        brush.start();
+    }
+    else {
+        container.plugins.resume('drag')
+        brush.stop();
+    }
+})
+
+watch(alt, v=>brush.alt(v));
+watch(ctrl, v=>brush.ctrl(v))
+
 
 const maxSize = Math.max(...nodes.map(i => i.size));
 const minSize = Math.min(...nodes.map(i => i.size));
@@ -323,7 +276,7 @@ nodes.forEach(node => {
     node.gfx.beginFill(props.colorMap(node));
     node.gfx.drawCircle(0, 0, calSize(node.size));
     nodeLinkLayer.addChildAt(node.gfx, 0);
-    selectionLayer.addChildAt(node.selectGfx, 0);
+    // selectionLayer.addChildAt(node.selectGfx, 0);
 })
 
 let links = props.links.map(item => {
@@ -338,17 +291,17 @@ nodeLinkLayer.addChildAt(linkGfx, 1);
 
 
 // selection
-watch(() => props.selectedNodes, (v) => {
-    nodes.forEach(node => {
-        node.selectGfx.clear();
-        if (v.has(node.id)) {
-            node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
-            node.selectGfx.beginFill(0x0000ff);
-            node.selectGfx.drawCircle(0, 0, calSize(node.size));
-            node.selectGfx.position = new PIXI.Point(node.x, node.y)
-        }
-    })
-}, { deep: true })
+// watch(() => props.selectedNodes, (v) => {
+//     nodes.forEach(node => {
+//         node.selectGfx.clear();
+//         if (v.has(node.id)) {
+//             node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
+//             node.selectGfx.beginFill(0x0000ff);
+//             node.selectGfx.drawCircle(0, 0, calSize(node.size));
+//             node.selectGfx.position = new PIXI.Point(node.x, node.y)
+//         }
+//     })
+// }, { deep: true })
 
 
 function search(quadtree, [[x0, y0], [x3, y3]], cb) {
@@ -356,7 +309,7 @@ function search(quadtree, [[x0, y0], [x3, y3]], cb) {
         if (!node.length) {
             do {
                 const { data: d } = node;
-                const {x,y} = d;
+                const { x, y } = d;
                 // d.scanned = true;
                 if (x >= x0 && x < x3 && y >= y0 && y < y3) {
                     cb(d)
@@ -479,7 +432,7 @@ function handleForceStop() {
 
         gfx.interactive = true;
         gfx.on("pointerup", e => {
-            if (dragging || brushing) return;
+            if (dragging || brush.brushing) return;
 
 
             const k = container.findFit(2 * r + 10, 2 * r + 10);
