@@ -16,6 +16,7 @@ import jDBSCAN from "jdbscan";
 import createGraph from "../../algorithms/createGraph.js";
 import createWhisper from "ngraph.cw";
 import detectClusters from "ngraph.louvain";
+import useBrush from "./utils/brush.js";
 
 // basic settings
 
@@ -72,7 +73,7 @@ const width = 400;
 const height = 400;
 
 // build graph
-const graph = createGraph(props.nodes, props.links, n=>n.id, l=>l.source, l=>l.target);
+const graph = createGraph(props.nodes, props.links, n => n.id, l => l.source, l => l.target);
 
 // pixi setup
 const app = new PIXI.Application({
@@ -84,6 +85,11 @@ const app = new PIXI.Application({
 const container = new Viewport({
     interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
 })
+const d = 5;
+const container2 = new Viewport({
+    interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
+})
+container2.alpha = 0
 container
     .drag()
     .pinch()
@@ -97,6 +103,75 @@ let dragging = false;
 container.on("drag-start", () => dragging = true);
 container.on("drag-end", () => dragging = false);
 app.stage.addChild(container);
+
+
+const rect = new PIXI.Graphics()
+rect.beginFill();
+rect.drawRect(50, 50, 100, 100);
+rect.endFill();
+container2.addChild(rect);
+container2.zoomPercent(d);
+const { t } = useMagicKeys();
+let f = true;
+
+watch(t, () => {
+    if (t.value) return;
+    if (f) {
+        app.stage.addChildAt(container2, 1);
+        const cb = () => {
+            const k1 = container.transform.worldTransform.a;
+            const k2 = container2.transform.worldTransform.a;
+            const o1 = calOpacity1(k1);
+            const o2 = calOpacity2(k2);
+            container.alpha = o1;
+            container2.alpha = o2;
+            console.log(k1, k2, o1, o2);
+        }
+        const calOpacity1 = d3.scaleLinear().domain([1, 1 / d]).range([1, 0]).clamp(true);
+        const calOpacity2 = d3.scaleLinear().domain([d, 1]).range([0, 1]).clamp(true);
+        container.animate({
+            scale: 1 / d,
+            callbackOnComplete: () => {
+                app.ticker.remove(cb);
+                app.stage.removeChild(container);
+            },
+            ease: "easeInOutCubic"
+        });
+        container2.animate({
+            scale: 1,
+            ease: "easeInOutCubic"
+        });
+        app.ticker.add(cb);
+    }
+    else {
+        app.stage.addChildAt(container, 0);
+        const cb = () => {
+            const k1 = container.transform.worldTransform.a;
+            const k2 = container2.transform.worldTransform.a;
+            const o1 = calOpacity1(k1);
+            const o2 = calOpacity2(k2);
+            container.alpha = o1;
+            container2.alpha = o2;
+            console.log(k1, k2, o1, o2);
+        }
+        const calOpacity1 = d3.scaleLinear().domain([1 / d, 1]).range([0, 1]).clamp(true);
+        const calOpacity2 = d3.scaleLinear().domain([1, d]).range([1, 0]).clamp(true);
+        container.animate({
+            scale: 1,
+            callbackOnComplete: () => {
+                app.ticker.remove(cb);
+                app.stage.removeChild(container2);
+            },
+            ease: "easeInOutCubic"
+        });
+        container2.animate({
+            scale: d,
+            ease: "easeInOutCubic"
+        });
+        app.ticker.add(cb);
+    }
+    f = !f;
+})
 
 // three layers: node-link layer, circle layer, selection layer
 // create layer
@@ -152,6 +227,11 @@ function handleBrushMove(e) {
 
         let w = Math.abs(x - lastPos.x);
         let h = Math.abs(y - lastPos.y);
+
+        const { x: tx1, y: ty1 } = container.transform.worldTransform.applyInverse(new PIXI.Point(newX, newY));
+        const { x: tx2, y: ty2 } = container.transform.worldTransform.applyInverse(new PIXI.Point(newX+w, newY+h));
+        search(quadtree, [[rectPos.x, rectPos.y], [rectPos.x+rectPos.w, rectPos.y+rectPos.h]], (n)=>selectedNodes.value.delete(n.id));
+        search(quadtree, [[tx1, ty1], [tx2, ty2]], (n)=>selectedNodes.value.add(n.id));
 
         rectPos.x = newX;
         rectPos.y = newY;
@@ -268,14 +348,15 @@ watch(() => props.selectedNodes, (v) => {
             node.selectGfx.position = new PIXI.Point(node.x, node.y)
         }
     })
-},  {deep:true})
+}, { deep: true })
 
 
 function search(quadtree, [[x0, y0], [x3, y3]], cb) {
     quadtree.visit((node, x1, y1, x2, y2) => {
         if (!node.length) {
             do {
-                const { data: d, data: [x, y] } = node;
+                const { data: d } = node;
+                const {x,y} = d;
                 // d.scanned = true;
                 if (x >= x0 && x < x3 && y >= y0 && y < y3) {
                     cb(d)
@@ -328,8 +409,8 @@ function cluster_detect(nodes, links) {
 }
 
 function handleForceStop() {
-    // quadtree = d3.quadtree();
-    // quadtree.addAll(nodes).x(i => i.x).y(i => i.y);
+    quadtree = d3.quadtree();
+    quadtree.x(i => i.x).y(i => i.y).addAll(nodes);
 
     // dbscan setup
     var dbscanner = jDBSCAN()
@@ -430,6 +511,7 @@ function handleForceStop() {
 // change layer opacity when zoom
 const onZoom = () => {
     const k = container.transform.worldTransform.a;
+    console.log(container.getBounds());
     hullLayer.alpha = hullOpacity(k);
     nodeLinkLayer.alpha = nodeLinkOpacity(k);
     if (hullLayer.alpha == hullOpacity.range()[1]) {
@@ -450,6 +532,7 @@ function initDraw() {
     app.resizeTo = el.value;
     const { height, width } = app.screen;
     container.resize(width, height)
+    container2.resize(width, height)
     // simulation initial data
     simulation.nodes(nodes).force('link').links(links);
     simulation.stop();
@@ -460,21 +543,22 @@ function initDraw() {
 
         if (simulation.alpha() >= simulation.alphaMin()) {
             simulation.tick();
+            // draw line
+            linkGfx.clear();
+            linkGfx.alpha = 0.6
+            links.forEach((link) => {
+                let { source, target } = link
+                linkGfx.lineStyle(k < 1 ? 1 / k : 1, 0x999999)
+                linkGfx.moveTo(source.x, source.y)
+                linkGfx.lineTo(target.x, target.y)
+            })
+            linkGfx.endFill();
         }
         else if (!stopped) {
             handleForceStop();
             stopped = true;
         }
-        // draw line
-        linkGfx.clear();
-        linkGfx.alpha = 0.6
-        links.forEach((link) => {
-            let { source, target } = link
-            linkGfx.lineStyle(k < 1 ? 1 / k : 1, 0x999999)
-            linkGfx.moveTo(source.x, source.y)
-            linkGfx.lineTo(target.x, target.y)
-        })
-        linkGfx.endFill();
+
         // move nodes
         nodes.forEach((node) => {
             let { id, x, y, gfx } = node
@@ -489,21 +573,21 @@ function initDraw() {
 
             const { x: tx1, y: ty1 } = container.transform.worldTransform.applyInverse(new PIXI.Point(x1, y1));
             const { x: tx2, y: ty2 } = container.transform.worldTransform.applyInverse(new PIXI.Point(x2, y2));
-            if (brushing) {
-                if (x > tx1 && y > ty1 && x < tx2 && y < ty2) {
-                    if (alt.value) {
-                        selectedNodes.value.delete(id);
-                    }
-                    else {
-                        selectedNodes.value.add(id);
-                    }
-                }
-                else {
-                    if (!alt.value && !ctrl.value) {
-                        selectedNodes.value.delete(id);
-                    }
-                }
-            }
+            // if (brushing) {
+            //     if (x > tx1 && y > ty1 && x < tx2 && y < ty2) {
+            //         if (alt.value) {
+            //             selectedNodes.value.delete(id);
+            //         }
+            //         else {
+            //             selectedNodes.value.add(id);
+            //         }
+            //     }
+            //     else {
+            //         if (!alt.value && !ctrl.value) {
+            //             selectedNodes.value.delete(id);
+            //         }
+            //     }
+            // }
             if (selectedNodes.value.has(id)) {
                 // const color = new PIXI.filters.ColorMatrixFilter();
                 // color.negative();

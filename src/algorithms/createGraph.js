@@ -6,7 +6,7 @@ export default function cg(nodes, edges, id = n => n.id, source = n => n.source.
         graph.addNode(id(node), node);
     });
     edges.forEach(edge => {
-        graph.addLink(source(edge), target(edge));
+        graph.addLink(source(edge), target(edge), edge);
     });
     return graph;
 }
