@@ -4,7 +4,7 @@ import * as d3 from "d3";
 export default class useForce {
     dispatch = d3.dispatch("tick", "end");
     simulation = d3.forceSimulation()
-        .force("charge", d3.forceManyBody())
+        .force("charge", d3.forceManyBody().theta(0.8))
         .on("tick", ()=>this.dispatch.call("tick"))
         .on("end", ()=>this.dispatch.call("end"))
         .stop();
@@ -110,10 +110,20 @@ export default class useForce {
     scale(k){
         this._nodes.forEach(node=>{
             k = Math.min(k, 1);
-            node.gfx.scale.x = Math.sqrt(k)
-            node.gfx.scale.y = Math.sqrt(k)
-
+            node.gfx.scale.x =  k < 1 ? (1 / k) ** 0.5 : 1
+            node.gfx.scale.y = k < 1 ? (1 / k) ** 0.5 : 1
         })
+        return this;
+    }
+
+    start(){
+        this.simulation.restart();
+        return this;
+    }
+
+    stop(){
+        this.simulation.stop();
+        return this;
     }
 
     constructor() {

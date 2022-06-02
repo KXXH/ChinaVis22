@@ -6,7 +6,7 @@
 import { ref, onMounted, watch } from "vue";
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport'
-import { useElementSize, watchOnce, useTransition, TransitionPresets, useVModel } from '@vueuse/core';
+import { useElementSize, watchOnce, TransitionPresets, useVModel } from '@vueuse/core';
 import _ from "lodash";
 import * as d3 from "d3";
 import { useMagicKeys, logicOr } from '@vueuse/core'
@@ -18,6 +18,10 @@ import createWhisper from "ngraph.cw";
 import detectClusters from "ngraph.louvain";
 import useBrush from "./utils/brush.js";
 import useForce from "./utils/force.js";
+
+import { useTransition, transitionContainer } from "./utils/transition";
+
+// import useNGForce from "./utils/ngraph-force.js";
 
 // basic settings
 
@@ -86,10 +90,10 @@ const app = new PIXI.Application({
 const container = new Viewport({
     interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
 })
-const d = 5;
-// const container2 = new Viewport({
-//     interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
-// })
+const container2 = new Viewport({
+    interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
+})
+const transition = new useTransition().container(app.stage);
 // container2.alpha = 0
 container
     .drag()
@@ -110,69 +114,26 @@ const rect = new PIXI.Graphics()
 rect.beginFill();
 rect.drawRect(50, 50, 100, 100);
 rect.endFill();
-// container2.addChild(rect);
+container2.addChild(rect);
 // container2.zoomPercent(d);
 const { t } = useMagicKeys();
 let f = true;
-
-// watch(t, () => {
-//     if (t.value) return;
-//     if (f) {
-//         app.stage.addChildAt(container2, 1);
-//         const cb = () => {
-//             const k1 = container.transform.worldTransform.a;
-//             const k2 = container2.transform.worldTransform.a;
-//             const o1 = calOpacity1(k1);
-//             const o2 = calOpacity2(k2);
-//             container.alpha = o1;
-//             container2.alpha = o2;
-//             console.log(k1, k2, o1, o2);
-//         }
-//         const calOpacity1 = d3.scaleLinear().domain([1, 1 / d]).range([1, 0]).clamp(true);
-//         const calOpacity2 = d3.scaleLinear().domain([d, 1]).range([0, 1]).clamp(true);
-//         container.animate({
-//             scale: 1 / d,
-//             callbackOnComplete: () => {
-//                 app.ticker.remove(cb);
-//                 app.stage.removeChild(container);
-//             },
-//             ease: "easeInOutCubic"
-//         });
-//         container2.animate({
-//             scale: 1,
-//             ease: "easeInOutCubic"
-//         });
-//         app.ticker.add(cb);
-//     }
-//     else {
-//         app.stage.addChildAt(container, 0);
-//         const cb = () => {
-//             const k1 = container.transform.worldTransform.a;
-//             const k2 = container2.transform.worldTransform.a;
-//             const o1 = calOpacity1(k1);
-//             const o2 = calOpacity2(k2);
-//             container.alpha = o1;
-//             container2.alpha = o2;
-//             console.log(k1, k2, o1, o2);
-//         }
-//         const calOpacity1 = d3.scaleLinear().domain([1 / d, 1]).range([0, 1]).clamp(true);
-//         const calOpacity2 = d3.scaleLinear().domain([1, d]).range([1, 0]).clamp(true);
-//         container.animate({
-//             scale: 1,
-//             callbackOnComplete: () => {
-//                 app.ticker.remove(cb);
-//                 app.stage.removeChild(container2);
-//             },
-//             ease: "easeInOutCubic"
-//         });
-//         container2.animate({
-//             scale: d,
-//             ease: "easeInOutCubic"
-//         });
-//         app.ticker.add(cb);
-//     }
-//     f = !f;
-// })
+const tc1 = new transitionContainer().container(container);
+const tc2 = new transitionContainer().container(container2);
+watch(t, () => {
+    if (t.value||transition.transitionOn) return;
+    if (f) {
+        transition.transition(
+            tc1, tc2
+        )
+    }
+    else {
+        transition.transition(
+            tc2, tc1
+        )
+    }
+    f=!f;
+})
 
 // three layers: node-link layer, circle layer, selection layer
 // create layer
@@ -199,7 +160,7 @@ let nodes = props.nodes.map(item => {
     return node;
 });
 
-function drawNode(node){
+function drawNode(node) {
     node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
     node.selectGfx.beginFill(0x0000ff);
     node.selectGfx.drawCircle(0, 0, calSize(node.size));
@@ -428,9 +389,11 @@ function initDraw() {
     app.resizeTo = el.value;
     const { height, width } = app.screen;
     container.resize(width, height)
-    // container2.resize(width, height)
+    container2.resize(width, height)
     // simulation initial data
-    force.width(width).height(height).simulation.alphaMin(0.01).restart();
+    force.width(width).height(height);
+    force.simulation.alphaMin(0.01)
+    force.start();
 }
 
 onMounted(() => {
