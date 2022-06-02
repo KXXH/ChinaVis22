@@ -17,6 +17,7 @@ import createGraph from "../../algorithms/createGraph.js";
 import createWhisper from "ngraph.cw";
 import detectClusters from "ngraph.louvain";
 import useBrush from "./utils/brush.js";
+import useForce from "./utils/force.js";
 
 // basic settings
 
@@ -36,7 +37,7 @@ const hullOpacity = d3.scaleLog()
 
 const nodeLinkOpacity = d3.scalePow()
     .domain([0.0001, 2])
-    .range([0, 1])
+    .range([0.2, 1])
     .clamp(true);
 
 
@@ -64,11 +65,11 @@ const props = defineProps({
     },
     brush: Boolean,
     selectedNodes: {
-        type: Set,
-        default: () => new Set()
+        type: Map,
+        default: () => new Map()
     }
 });
-const emits = defineEmits(["update:selectedNodes"]);
+const emits = defineEmits(["update:selectedNodes", "layoutDone"]);
 const width = 400;
 const height = 400;
 
@@ -86,10 +87,10 @@ const container = new Viewport({
     interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
 })
 const d = 5;
-const container2 = new Viewport({
-    interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
-})
-container2.alpha = 0
+// const container2 = new Viewport({
+//     interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
+// })
+// container2.alpha = 0
 container
     .drag()
     .pinch()
@@ -109,69 +110,69 @@ const rect = new PIXI.Graphics()
 rect.beginFill();
 rect.drawRect(50, 50, 100, 100);
 rect.endFill();
-container2.addChild(rect);
-container2.zoomPercent(d);
+// container2.addChild(rect);
+// container2.zoomPercent(d);
 const { t } = useMagicKeys();
 let f = true;
 
-watch(t, () => {
-    if (t.value) return;
-    if (f) {
-        app.stage.addChildAt(container2, 1);
-        const cb = () => {
-            const k1 = container.transform.worldTransform.a;
-            const k2 = container2.transform.worldTransform.a;
-            const o1 = calOpacity1(k1);
-            const o2 = calOpacity2(k2);
-            container.alpha = o1;
-            container2.alpha = o2;
-            console.log(k1, k2, o1, o2);
-        }
-        const calOpacity1 = d3.scaleLinear().domain([1, 1 / d]).range([1, 0]).clamp(true);
-        const calOpacity2 = d3.scaleLinear().domain([d, 1]).range([0, 1]).clamp(true);
-        container.animate({
-            scale: 1 / d,
-            callbackOnComplete: () => {
-                app.ticker.remove(cb);
-                app.stage.removeChild(container);
-            },
-            ease: "easeInOutCubic"
-        });
-        container2.animate({
-            scale: 1,
-            ease: "easeInOutCubic"
-        });
-        app.ticker.add(cb);
-    }
-    else {
-        app.stage.addChildAt(container, 0);
-        const cb = () => {
-            const k1 = container.transform.worldTransform.a;
-            const k2 = container2.transform.worldTransform.a;
-            const o1 = calOpacity1(k1);
-            const o2 = calOpacity2(k2);
-            container.alpha = o1;
-            container2.alpha = o2;
-            console.log(k1, k2, o1, o2);
-        }
-        const calOpacity1 = d3.scaleLinear().domain([1 / d, 1]).range([0, 1]).clamp(true);
-        const calOpacity2 = d3.scaleLinear().domain([1, d]).range([1, 0]).clamp(true);
-        container.animate({
-            scale: 1,
-            callbackOnComplete: () => {
-                app.ticker.remove(cb);
-                app.stage.removeChild(container2);
-            },
-            ease: "easeInOutCubic"
-        });
-        container2.animate({
-            scale: d,
-            ease: "easeInOutCubic"
-        });
-        app.ticker.add(cb);
-    }
-    f = !f;
-})
+// watch(t, () => {
+//     if (t.value) return;
+//     if (f) {
+//         app.stage.addChildAt(container2, 1);
+//         const cb = () => {
+//             const k1 = container.transform.worldTransform.a;
+//             const k2 = container2.transform.worldTransform.a;
+//             const o1 = calOpacity1(k1);
+//             const o2 = calOpacity2(k2);
+//             container.alpha = o1;
+//             container2.alpha = o2;
+//             console.log(k1, k2, o1, o2);
+//         }
+//         const calOpacity1 = d3.scaleLinear().domain([1, 1 / d]).range([1, 0]).clamp(true);
+//         const calOpacity2 = d3.scaleLinear().domain([d, 1]).range([0, 1]).clamp(true);
+//         container.animate({
+//             scale: 1 / d,
+//             callbackOnComplete: () => {
+//                 app.ticker.remove(cb);
+//                 app.stage.removeChild(container);
+//             },
+//             ease: "easeInOutCubic"
+//         });
+//         container2.animate({
+//             scale: 1,
+//             ease: "easeInOutCubic"
+//         });
+//         app.ticker.add(cb);
+//     }
+//     else {
+//         app.stage.addChildAt(container, 0);
+//         const cb = () => {
+//             const k1 = container.transform.worldTransform.a;
+//             const k2 = container2.transform.worldTransform.a;
+//             const o1 = calOpacity1(k1);
+//             const o2 = calOpacity2(k2);
+//             container.alpha = o1;
+//             container2.alpha = o2;
+//             console.log(k1, k2, o1, o2);
+//         }
+//         const calOpacity1 = d3.scaleLinear().domain([1 / d, 1]).range([0, 1]).clamp(true);
+//         const calOpacity2 = d3.scaleLinear().domain([1, d]).range([1, 0]).clamp(true);
+//         container.animate({
+//             scale: 1,
+//             callbackOnComplete: () => {
+//                 app.ticker.remove(cb);
+//                 app.stage.removeChild(container2);
+//             },
+//             ease: "easeInOutCubic"
+//         });
+//         container2.animate({
+//             scale: d,
+//             ease: "easeInOutCubic"
+//         });
+//         app.ticker.add(cb);
+//     }
+//     f = !f;
+// })
 
 // three layers: node-link layer, circle layer, selection layer
 // create layer
@@ -179,66 +180,44 @@ const nodeLinkLayer = new PIXI.Container();
 nodeLinkLayer.alpha = nodeLinkOpacity(1);
 const hullLayer = new PIXI.Container();
 hullLayer.alpha = hullOpacity(1);
-const selectionLayer = new PIXI.Container();
 
 container.addChild(nodeLinkLayer);
 container.addChild(hullLayer);
-container.addChild(selectionLayer);
 
 
 // brush
-const lastPos = {
-    x: 0,
-    y: 0
-}
 const { ctrl, alt } = useMagicKeys();  // ctrl: add nodes; alt: remove nodes
-const magicKeysOn = logicOr(ctrl, alt);
 
-const brushRect = new PIXI.Graphics();
-app.stage.addChild(brushRect);
-// const selectedNodes = new Set();
 const selectedNodes = useVModel(props, "selectedNodes", emits);
-const rectPos = {
-    x: 0,
-    y: 0,
-    w: 0,
-    h: 0
-};
-
-let brushing = false;
-
-// force setup
-const simulation = d3.forceSimulation()
-    .alphaMin(0.01)
-    .force("link", d3.forceLink().id(d => d.id))
-    .force("charge", d3.forceManyBody())
-    .force("center", d3.forceCenter(width / 2, height / 2));
 
 // brush
 let nodes = props.nodes.map(item => {
     let node = {
         ...item
     };
-    node.gfx = new PIXI.Graphics();
-    // node.selectGfx = new PIXI.Graphics();
-    node.size = props.size(node);
+    node.size = props.size(node)
     return node;
 });
+
+function drawNode(node){
+    node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
+    node.selectGfx.beginFill(0x0000ff);
+    node.selectGfx.drawCircle(0, 0, calSize(node.size));
+    node.selectGfx.position = new PIXI.Point(node.x, node.y)
+}
 
 const brush = new useBrush()
     .app(app)
     .container(container)
     .nodes(nodes)
-    .onExit(n=>n.selectGfx.clear())
-    .onBrush(
+    .on("exit.clear", n => n.selectGfx.clear())
+    .on("forceEnter.draw", drawNode)
+    .on(
+        "brush.change",
         () => {
-            console.log(brush.selection.size);
-            brush.selection.forEach((node)=>{
-                node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
-                node.selectGfx.beginFill(0x0000ff);
-                node.selectGfx.drawCircle(0, 0, calSize(node.size));
-                node.selectGfx.position = new PIXI.Point(node.x, node.y)
-            })
+            // selectedNodes.value = brush.selection;
+            emits("update:selectedNodes", brush.selection)
+            brush.selection.forEach(drawNode);
         }
     )
     .stop();
@@ -254,8 +233,9 @@ watch(() => props.brush, () => {
     }
 })
 
-watch(alt, v=>brush.alt(v));
-watch(ctrl, v=>brush.ctrl(v))
+watch(alt, v => brush.alt(v));
+watch(ctrl, v => brush.ctrl(v))
+watch(() => props.selectedNodes, (v) => brush.select(v));
 
 
 const maxSize = Math.max(...nodes.map(i => i.size));
@@ -266,19 +246,6 @@ function calSize(s) {
 }
 
 
-nodes.forEach(node => {
-    if (node.industry != "[]") {
-        node.gfx.lineStyle(NodeLineWidth, 0xfb7185);
-    }
-    else {
-        node.gfx.lineStyle(NodeLineWidth, 0xFFFFFF);
-    }
-    node.gfx.beginFill(props.colorMap(node));
-    node.gfx.drawCircle(0, 0, calSize(node.size));
-    nodeLinkLayer.addChildAt(node.gfx, 0);
-    // selectionLayer.addChildAt(node.selectGfx, 0);
-})
-
 let links = props.links.map(item => {
     let link = {
         ...item
@@ -286,42 +253,26 @@ let links = props.links.map(item => {
     return link;
 })
 
-let linkGfx = new PIXI.Graphics();
-nodeLinkLayer.addChildAt(linkGfx, 1);
 
-
-// selection
-// watch(() => props.selectedNodes, (v) => {
-//     nodes.forEach(node => {
-//         node.selectGfx.clear();
-//         if (v.has(node.id)) {
-//             node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
-//             node.selectGfx.beginFill(0x0000ff);
-//             node.selectGfx.drawCircle(0, 0, calSize(node.size));
-//             node.selectGfx.position = new PIXI.Point(node.x, node.y)
-//         }
-//     })
-// }, { deep: true })
-
-
-function search(quadtree, [[x0, y0], [x3, y3]], cb) {
-    quadtree.visit((node, x1, y1, x2, y2) => {
-        if (!node.length) {
-            do {
-                const { data: d } = node;
-                const { x, y } = d;
-                // d.scanned = true;
-                if (x >= x0 && x < x3 && y >= y0 && y < y3) {
-                    cb(d)
-                }
-                // d.selected = x >= x0 && x < x3 && y >= y0 && y < y3;
-            } while ((node = node.next));
+const force = new useForce()
+    .container(nodeLinkLayer)
+    .nodes(nodes)
+    .links(links)
+    .drawCircle((gfx, node) => {
+        if (node.industry != "[]") {
+            gfx.lineStyle(NodeLineWidth, 0xfb7185);
         }
-        return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0;
-    });
-}
+        else {
+            gfx.lineStyle(NodeLineWidth, 0xFFFFFF);
+        }
+        gfx.beginFill(props.colorMap(node));
+        gfx.drawCircle(0, 0, calSize(node.size));
+    })
+    .on("end.cluster", handleForceStop)
+    .on("end.quadtree", () => brush.quadtree(true))
+    .on("end.emit", () => emits("layoutDone", { nodes, links }));
 
-let quadtree = d3.quadtree();
+
 
 const mem = {}
 function randomColor(i) {
@@ -348,22 +299,15 @@ function minHullCircle(center, points) {
 }
 
 function cluster_detect(nodes, links) {
-    // const g = createGraph();
-    // nodes.forEach(n => g.addNode(n.id));
-    // links.forEach(l => g.addLink(l.source.id, l.target.id));
     var whisper = createWhisper(graph);
     var requiredChangeRate = 0; // 0 is complete convergence
     while (whisper.getChangeRate() > requiredChangeRate) {
         whisper.step();
     }
     return nodes.map(n => whisper.getClass(n.id));
-    // var clusters = detectClusters(g);
-    // return nodes.map(n=>clusters.getClass(n.id));
 }
 
 function handleForceStop() {
-    quadtree = d3.quadtree();
-    quadtree.x(i => i.x).y(i => i.y).addAll(nodes);
 
     // dbscan setup
     var dbscanner = jDBSCAN()
@@ -464,7 +408,6 @@ function handleForceStop() {
 // change layer opacity when zoom
 const onZoom = () => {
     const k = container.transform.worldTransform.a;
-    console.log(container.getBounds());
     hullLayer.alpha = hullOpacity(k);
     nodeLinkLayer.alpha = nodeLinkOpacity(k);
     if (hullLayer.alpha == hullOpacity.range()[1]) {
@@ -473,88 +416,25 @@ const onZoom = () => {
     else {
         container.setChildIndex(hullLayer, 1);
     }
+    force.scale(k);
 }
 
 container.on("zoomed", onZoom)
 
 // initial drawing
-let stopped = false;
 function initDraw() {
     // create canvas
     el.value.appendChild(app.view);
     app.resizeTo = el.value;
     const { height, width } = app.screen;
     container.resize(width, height)
-    container2.resize(width, height)
+    // container2.resize(width, height)
     // simulation initial data
-    simulation.nodes(nodes).force('link').links(links);
-    simulation.stop();
-
-    //tick
-    app.ticker.add((delta) => {
-        const k = container.transform.worldTransform.a;
-
-        if (simulation.alpha() >= simulation.alphaMin()) {
-            simulation.tick();
-            // draw line
-            linkGfx.clear();
-            linkGfx.alpha = 0.6
-            links.forEach((link) => {
-                let { source, target } = link
-                linkGfx.lineStyle(k < 1 ? 1 / k : 1, 0x999999)
-                linkGfx.moveTo(source.x, source.y)
-                linkGfx.lineTo(target.x, target.y)
-            })
-            linkGfx.endFill();
-        }
-        else if (!stopped) {
-            handleForceStop();
-            stopped = true;
-        }
-
-        // move nodes
-        nodes.forEach((node) => {
-            let { id, x, y, gfx } = node
-            gfx.position = new PIXI.Point(x, y)
-            gfx.scale.x = k < 1 ? (1 / k) ** 0.5 : 1
-            gfx.scale.y = k < 1 ? (1 / k) ** 0.5 : 1
-
-            const x1 = rectPos.x;
-            const x2 = x1 + rectPos.w;
-            const y1 = rectPos.y;
-            const y2 = y1 + rectPos.h
-
-            const { x: tx1, y: ty1 } = container.transform.worldTransform.applyInverse(new PIXI.Point(x1, y1));
-            const { x: tx2, y: ty2 } = container.transform.worldTransform.applyInverse(new PIXI.Point(x2, y2));
-            // if (brushing) {
-            //     if (x > tx1 && y > ty1 && x < tx2 && y < ty2) {
-            //         if (alt.value) {
-            //             selectedNodes.value.delete(id);
-            //         }
-            //         else {
-            //             selectedNodes.value.add(id);
-            //         }
-            //     }
-            //     else {
-            //         if (!alt.value && !ctrl.value) {
-            //             selectedNodes.value.delete(id);
-            //         }
-            //     }
-            // }
-            if (selectedNodes.value.has(id)) {
-                // const color = new PIXI.filters.ColorMatrixFilter();
-                // color.negative();
-                // gfx.filters = [color];
-            }
-            else {
-                gfx.filters = [];
-            }
-
-
-        })
-    });
+    force.width(width).height(height).simulation.alphaMin(0.01).restart();
 }
 
-onMounted(() => initDraw());
+onMounted(() => {
+    initDraw();
+});
 
 </script>

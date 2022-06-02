@@ -15,6 +15,7 @@
     "lodash": "^4.17.21",
     "naive-ui": "^2.29.0",
     "ngraph.cw": "^2.0.0",
+    "ngraph.forcelayout": "^3.3.0",
     "ngraph.graph": "^20.0.0",
     "ngraph.louvain": "^2.0.0",
     "pinia": "^2.0.14",

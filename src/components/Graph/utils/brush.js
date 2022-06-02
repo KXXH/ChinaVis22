@@ -31,16 +31,19 @@ export default class useBrush{
 
     _onEnter = ()=>{};
     _onExit = ()=>{};
+    dispatch = d3.dispatch("brushstart", "brush", "brushend", "enter", "exit", "forceEnter");
 
     constructor(){
+        this._brushLayer.name = "brush layer"
         this._brushLayer.addChild(this._brushRect);
+        this.selectionLayer.name = "selection layer"
     }
 
     handleBrushStart = (e) => {
         // if magic keys is not pressed, clear selection
         if (!(this._alt||this._ctrl)) {
             for(const [id, node] of this.selectedNodes){
-                this._onExit(node, this.selectionLayer);
+                this.dispatch.call("exit", null, node, this.selectionLayer);
             }
             this.selectedNodes.clear();
             // selectedNodes.= new Set();
@@ -51,6 +54,8 @@ export default class useBrush{
         this.lastPos.y = e.data.global.y;
         this.currentSelected.clear();
         this.brushing = true;
+        this.dispatch.call("brushstart", null, e);
+
     }
     handleBrushMove = (e) => {
         if (this.brushing) {
@@ -64,13 +69,21 @@ export default class useBrush{
 
             const { x: tx1, y: ty1 } = this._container.transform.worldTransform.applyInverse(new PIXI.Point(newX, newY));
             const { x: tx2, y: ty2 } = this._container.transform.worldTransform.applyInverse(new PIXI.Point(newX + w, newY + h));
-            this.searchCb(this.rectPos.x, this.rectPos.y, this.rectPos.x + this.rectPos.w, this.rectPos.y + this.rectPos.h, (n) => {
+            const { x: x1, y: y1 } = this._container.transform.worldTransform.applyInverse(new PIXI.Point(this.rectPos.x, this.rectPos.y));
+            const { x: x2, y: y2 } = this._container.transform.worldTransform.applyInverse(new PIXI.Point(this.rectPos.x + this.rectPos.w, this.rectPos.y + this.rectPos.h));
+
+            this.searchCb(x1,y1,x2,y2, (n) => {
                 this.currentSelected.delete(n.id);
-                this._onExit(n, this.selectionLayer);
+                // this._onExit(n, this.selectionLayer);
+                // console.log(n.id,n.x, n.y, this.rectPos, "exit")
+
+                this.dispatch.call("exit", null, n, this.selectionLayer)
             });
             this.searchCb(tx1, ty1, tx2, ty2, (n) => {
                 this.currentSelected.set(n.id, n)
-                this._onEnter(n, this.selectionLayer);
+                console.log(n.id, "enter")
+                // this._onEnter(n, this.selectionLayer);
+                this.dispatch.call("enter", null, n, this.selectionLayer)
             });
 
             this.rectPos.x = newX;
@@ -82,8 +95,9 @@ export default class useBrush{
             this._brushRect.lineStyle(1, 0x2563eb);
             this._brushRect.beginFill(0x60a5fa, 0.5);
             this._brushRect.drawRect(this.rectPos.x, this.rectPos.y, this.rectPos.w, this.rectPos.h);
-
-            this._onBrush(this.rectPos, this);
+            
+            this.dispatch.call("brush", null, this.rectPos, this);
+            // this._onBrush(this.rectPos, this);
         }
     }
     handleBrushEnd = (e) => {
@@ -92,24 +106,25 @@ export default class useBrush{
         this.brushing = false;
         this.selectedNodes = this.selection;
         this._brushRect.clear();
+        this.dispatch.call("brushend", null, e);
     }
     get selection(){
         let res = new Map(this.selectedNodes);
         // -
         if(this._alt){
             for (const [id, n] of this.currentSelected){
-                this.selectedNodes.delete(id)
+                res.delete(id)
             }
         }
         // +
         else if(this._ctrl){
             for(const [id, n] of this.currentSelected){
-                this.selectedNodes.set(id, n)
+                res.set(id, n)
             }
         }
         // =
         else {
-            res = this.currentSelected;
+            res = new Map(this.currentSelected);
         }
         return res;
     }
@@ -118,9 +133,9 @@ export default class useBrush{
         if(status){
             this._quadtree = d3
                 .quadtree()
+                .x(this._x)
+                .y(this._y)
                 .addAll(this._nodes)
-                .x(this.x())
-                .y(this.y())
         }
         else{
             this._quadtree = null;
@@ -192,6 +207,16 @@ export default class useBrush{
         this._container.on("mouseleave", this.handleBrushEnd);
         return this;
     }
+    select(nodes) {
+        for (const [id, node] of this.selection){
+            this.dispatch.call("exit", null, node, this.selectionLayer);
+        }
+        this.currentSelected.clear();
+        this.selectedNodes = new Map(nodes);
+        this.selectedNodes.forEach(node=>{
+            this.dispatch.call("forceEnter", null, node, this.selectionLayer);
+        })
+    }
     alt(v){
         this._alt=v;
         return this;
@@ -207,7 +232,7 @@ export default class useBrush{
     container(c){
         if(c==null) return this._container;
         this._container=c;
-        this._container.addChildAt(this.selectionLayer, this._container.length)
+        this._container.addChildAt(this.selectionLayer, this._container.children.length)
         return this;
     }
     onBrush(fn){
@@ -223,6 +248,10 @@ export default class useBrush{
     onExit(fn) {
         if (fn == null) return this._onExit;
         this._onExit = fn;
+        return this;
+    }
+    on(evt, fn){
+        this.dispatch.on(evt, fn);
         return this;
     }
 

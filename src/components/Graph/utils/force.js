@@ -2,19 +2,20 @@ import * as PIXI from 'pixi.js';
 import * as d3 from "d3";
 
 export default class useForce {
-    ticked = new PIXI.Signal();
-    end = new PIXI.Signal();
+    dispatch = d3.dispatch("tick", "end");
     simulation = d3.forceSimulation()
         .force("charge", d3.forceManyBody())
-        .stop()
-        .on("tick", this.ticked.dispatch())
-        .on("end", this.end.dispatch());
+        .on("tick", ()=>this.dispatch.call("tick"))
+        .on("end", ()=>this.dispatch.call("end"))
+        .stop();
 
     _container = new PIXI.Container()
+    _linkGfx = new PIXI.Graphics();
     _nodes = [];
     _links = [];
-    
-    
+    _width;
+    _height;
+
     _drawCircle = (gfx, n)=>{
         gfx.beginFill();
         gfx.drawCircle(0, 0, 10);
@@ -23,6 +24,8 @@ export default class useForce {
 
     _beforeDrawLine = (gfx)=>{
         gfx.clear();
+        gfx.lineStyle(1, 0x999999);
+        gfx.alpha = 0.6;
     }
 
     _drawLine = (gfx, l) => {
@@ -38,6 +41,7 @@ export default class useForce {
     container(c) {
         if (c == null) return this._container;
         this._container = c;
+        this._container.addChildAt(this._linkGfx, 0);
         return this;
     }
 
@@ -47,6 +51,8 @@ export default class useForce {
         this.simulation.nodes(this._nodes);
         this._nodes.forEach(n => {
             n.gfx = new PIXI.Graphics();
+            this._drawCircle(n.gfx, n);
+            this._container.addChildAt(n.gfx, this._container.children.length);
         })
         return this;
     }
@@ -54,7 +60,7 @@ export default class useForce {
     links(l) {
         if (l == null) return this._links;
         this._links = l;
-        this.simulation.force("link", d3.forceLink().id(d => d.id).links());
+        this.simulation.force("link", d3.forceLink().id(d => d.id).links(l));
         return this;
     }
 
@@ -76,6 +82,11 @@ export default class useForce {
     drawCircle(fn){
         if(fn==null) return this._drawCircle;
         this._drawCircle = fn;
+        this._nodes.forEach(n=>{
+            if(!n.gfx) return;
+            n.gfx.clear();
+            this._drawCircle(n.gfx, n);
+        })
         return this;
     }
 
@@ -91,13 +102,29 @@ export default class useForce {
         return this;
     }
 
+    on(type, fn){
+        this.dispatch.on(type, fn);
+        return this;
+    }
+
+    scale(k){
+        this._nodes.forEach(node=>{
+            k = Math.min(k, 1);
+            node.gfx.scale.x = Math.sqrt(k)
+            node.gfx.scale.y = Math.sqrt(k)
+
+        })
+    }
+
     constructor() {
-        this.ticked.add(() => {
+        this.dispatch.on("tick.move", () => {
             this._nodes.forEach(node => {
                 let { id, x, y, gfx } = node;
                 gfx.position = new PIXI.Point(x, y);
-
             })
+            this._beforeDrawLine(this._linkGfx)
+            this._links.forEach(l=>this._drawLine(this._linkGfx, l));
+            this._afterDrawLine(this._linkGfx);
         })
     }
 

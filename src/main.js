@@ -4,7 +4,7 @@ import 'virtual:windi.css'
 import 'virtual:windi-devtools'
 import animate from "animate.css"
 import { createPinia } from 'pinia'
-
+import * as PIXI from "pixi.js"
 
 import {
     create,
@@ -14,6 +14,8 @@ import {
 const naive = create({
     components: [NButton]
 })
+
+window.PIXI = PIXI  // fix devtools issue
 
 const app = createApp(App)
 app.use(naive)

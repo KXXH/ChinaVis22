@@ -28,9 +28,14 @@ const subgraphs = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 ]
 
-const g = createGraph(data.nodes, data.links, n=>n.id, l=>l.source, l=>l.target);
+let g = createGraph(data.nodes, data.links, n=>n.id, l=>l.source, l=>l.target);
+function updateG(nodes, links){
+  console.log("update g")
+  g = createGraph(nodes, links, n=>n.id, l=>l.source.id, l=>l.target.id)
+}
+
 function handleNeighbor(){
-    view_store.selectedNodes=neighbors(g, view_store.selectedNodes, n=>n)
+    view_store.selectedNodes=neighbors(g, view_store.selectedNodes)
 }
 
 const {Ctrl_E} = useMagicKeys();
@@ -60,6 +65,7 @@ watch(Ctrl_E, v=>{
                 :size="i=>i.betweenness"
                 :size-range="[5, 10]"
                 v-model:selected-nodes="view_store.selectedNodes"
+                @layout-done="updateG($event.nodes, $event.links)"
               />
             </ElementContainerVue>
           </div>
