@@ -8,6 +8,7 @@ import Icons from 'unplugin-icons/vite'
 export default defineConfig({
   plugins: [vue(), WindiCSS(), vueJsx(), Icons({
     autoInstall: true,
+    compiler: 'vue3' 
   })],
   resolve:{
     alias:{

@@ -41,7 +41,7 @@ export default class useBrush{
 
     handleBrushStart = (e) => {
         // if magic keys is not pressed, clear selection
-        if (!(this._alt||this._ctrl)) {
+        if (!this._alt&&!this._ctrl) {
             for(const [id, node] of this.selectedNodes){
                 this.dispatch.call("exit", null, node, this.selectionLayer);
             }
@@ -55,6 +55,7 @@ export default class useBrush{
         this.currentSelected.clear();
         this.brushing = true;
         this.dispatch.call("brushstart", null, e);
+
 
     }
     handleBrushMove = (e) => {
@@ -81,7 +82,7 @@ export default class useBrush{
             });
             this.searchCb(tx1, ty1, tx2, ty2, (n) => {
                 this.currentSelected.set(n.id, n)
-                console.log(n.id, "enter")
+                // console.log(n.id, "enter")
                 // this._onEnter(n, this.selectionLayer);
                 this.dispatch.call("enter", null, n, this.selectionLayer)
             });
@@ -98,15 +99,17 @@ export default class useBrush{
             
             this.dispatch.call("brush", null, this.rectPos, this);
             // this._onBrush(this.rectPos, this);
+            // console.log("move", this.selectedNodes.size, this.currentSelected.size)
         }
     }
     handleBrushEnd = (e) => {
         this.rectPos.x = this.rectPos.y = 0;
         this.rectPos.w = this.rectPos.h = 0;
         this.brushing = false;
-        this.selectedNodes = this.selection;
+        this.selectedNodes = new Map(this.selection);
         this._brushRect.clear();
         this.dispatch.call("brushend", null, e);
+        // console.log("end", this.selectedNodes.size, this.currentSelected.size)
     }
     get selection(){
         let res = new Map(this.selectedNodes);
@@ -126,6 +129,8 @@ export default class useBrush{
         else {
             res = new Map(this.currentSelected);
         }
+        // console.log("get", this.selectedNodes.size, this.currentSelected.size)
+
         return res;
     }
     quadtree(status){
@@ -208,6 +213,7 @@ export default class useBrush{
         return this;
     }
     select(nodes) {
+
         for (const [id, node] of this.selection){
             this.dispatch.call("exit", null, node, this.selectionLayer);
         }

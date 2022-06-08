@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import * as d3 from "d3";
+import { RELATION_STRENGTH } from '../../../config/node_and_links';
 
 export default class useForce {
     dispatch = d3.dispatch("tick", "end");
@@ -60,7 +61,15 @@ export default class useForce {
     links(l) {
         if (l == null) return this._links;
         this._links = l;
-        this.simulation.force("link", d3.forceLink().id(d => d.id).links(l));
+        this.simulation.force("link", 
+            d3.forceLink()
+                .id(d => d.id)
+                // .distance(function(link){
+                //     // return 1 / Math.min(count(link.source), count(link.target));
+                //     return 50/RELATION_STRENGTH[link.relation];
+                // })
+                .links(l)
+        );
         return this;
     }
 

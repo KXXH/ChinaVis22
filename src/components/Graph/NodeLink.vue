@@ -171,12 +171,17 @@ const brush = new useBrush()
     .app(app)
     .container(container)
     .nodes(nodes)
-    .on("exit.clear", n => n.selectGfx.clear())
+    // .on("brushstart.1",()=>console.log("brushstart", brush))
+    .on("exit.clear", n => {
+        n.selectGfx.clear();
+    })
     .on("forceEnter.draw", drawNode)
+    .on("brushstart.change", ()=>{
+        emits("update:selectedNodes", brush.selection)
+    })
     .on(
         "brush.change",
         () => {
-            // selectedNodes.value = brush.selection;
             emits("update:selectedNodes", brush.selection)
             brush.selection.forEach(drawNode);
         }
@@ -196,7 +201,11 @@ watch(() => props.brush, () => {
 
 watch(alt, v => brush.alt(v));
 watch(ctrl, v => brush.ctrl(v))
-watch(() => props.selectedNodes, (v) => brush.select(v));
+
+function forceSelect(nodes){
+    brush.select(nodes);
+    return nodes;
+}
 
 
 const maxSize = Math.max(...nodes.map(i => i.size));
@@ -228,6 +237,12 @@ const force = new useForce()
         }
         gfx.beginFill(props.colorMap(node));
         gfx.drawCircle(0, 0, calSize(node.size));
+    })
+    .on("tick.select", ()=>{
+        brush.selection.forEach(n=>{
+            n.selectGfx.clear()
+            drawNode(n);
+        });
     })
     .on("end.cluster", handleForceStop)
     .on("end.quadtree", () => brush.quadtree(true))
@@ -272,7 +287,7 @@ function handleForceStop() {
 
     // dbscan setup
     var dbscanner = jDBSCAN()
-        .eps(75)
+        .eps(60)
         .minPts(10)
         .distance('EUCLIDEAN')
         .data(nodes);
@@ -399,5 +414,7 @@ function initDraw() {
 onMounted(() => {
     initDraw();
 });
+
+defineExpose({forceSelect})
 
 </script>

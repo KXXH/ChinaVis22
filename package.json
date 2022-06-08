@@ -8,19 +8,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vueuse/components": "^8.6.0",
     "@vueuse/core": "^8.5.0",
     "animate.css": "^4.1.1",
     "d3": "^7.4.4",
     "jdbscan": "^1.0.0",
     "lodash": "^4.17.21",
     "naive-ui": "^2.29.0",
+    "ngraph.centrality": "^2.1.0",
     "ngraph.cw": "^2.0.0",
     "ngraph.forcelayout": "^3.3.0",
     "ngraph.graph": "^20.0.0",
     "ngraph.louvain": "^2.0.0",
+    "ngraph.subgraph": "^1.2.0",
     "pinia": "^2.0.14",
     "pixi-viewport": "^4.34.4",
     "pixi.js": "^6.3.2",
+    "simple-statistics": "^7.7.5",
     "vite-plugin-windicss": "^1.8.4",
     "vue": "^3.2.25",
     "windicss": "^3.5.4"
@@ -29,6 +33,7 @@
     "@iconify/json": "^2.1.48",
     "@vitejs/plugin-vue": "^2.3.3",
     "@vitejs/plugin-vue-jsx": "^1.3.10",
+    "@vue/compiler-sfc": "^3.2.37",
     "@windicss/plugin-scrollbar": "^1.2.3",
     "unplugin-icons": "^0.14.3",
     "vite": "^2.9.9"

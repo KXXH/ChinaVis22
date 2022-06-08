@@ -5,7 +5,6 @@ import 'virtual:windi-devtools'
 import animate from "animate.css"
 import { createPinia } from 'pinia'
 import * as PIXI from "pixi.js"
-
 import {
     create,
     NButton
