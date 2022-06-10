@@ -17,13 +17,20 @@ import Subgraph from "./components/Motif/Subgraph.vue";
 import data from "./assets/graph.json";
 
 import color from "./config/colormap.js"
+import ColorGenerator from "./algorithms/colorGenerator";
 import createGraph from "./algorithms/createGraph";
 import neighbors from "./algorithms/neighbors";
 import { extend_graph } from "./algorithms/neighbors";
 import { node_stat } from "./algorithms/statistics";
 import { simplify } from './algorithms/simplify';
+import { louvain } from "./algorithms/community";
+
+import coarsen from "ngraph.coarsen";
 
 import _ from "lodash";
+import communityColor from "./utils/communityColor";
+
+// const colorFn = ref(color);
 
 document.onkeydown = (e) => {
   e.preventDefault();
@@ -74,24 +81,18 @@ const sg = computed(() => {
   return getSubgraph(new Set(view_store.selectedNodes.keys()), g);
 })
 
-function test(){
-  rdata.nodes = data.nodes.slice(0, 1000);
-  const rdataS = new Set(data.nodes.map(n=>n.id));
-  rdata.links = data.links.filter(l=>(rdataS.has(l.source)&&rdataS.has(l.target))||(rdataS.has(l.source)&&rdataS.has(l.target)));
-
-}
-
 let simplifyFlag = false;
 function handleSimplify(){
-  if(simplifyFlag){
-    simplifyFlag = false;
-    rdata.nodes = data.nodes;
-    rdata.links = data.links;
-    return;
-  }
+  // if(simplifyFlag){
+  //   simplifyFlag = false;
+  //   rdata.nodes = data.nodes;
+  //   rdata.links = data.links;
+  //   return;
+  // }
   simplifyFlag = true;
   const g = createGraph(rdata.nodes, rdata.links, n => n.id, l => l.source, l => l.target);
-  const sg = simplify(g);
+  let sg = simplify(g);
+  sg = simplify(sg);
   const ns = [];
   const ls = [];
   sg.forEachNode(n=>{
@@ -103,10 +104,31 @@ function handleSimplify(){
       target:l.toId
     });
   });
-  console.log(ns, ls)
   rdata.nodes = ns;
   rdata.links = ls;
 }
+
+const cg = new ColorGenerator();
+const cc = new communityColor(g);
+let clusters = [];
+let gg = [g];
+function getClass(i, id){
+  if(i==clusters.length-1) return clusters[i].getClass(id)
+  return getClass(i+1, clusters[i].getClass(id))
+}
+// function handleCommunity(){
+//   let c = louvain(gg[gg.length-1]);
+//   gg.push(coarsen(gg[gg.length-1], c))
+//   clusters.push(c)
+//   colorFn.value = (n)=>{
+//     console.log(n.id, getClass(0, n.id))
+//     return cg.randomColor(getClass(0, n.id))
+//   }
+
+// }
+const colorFn = computed(()=>{
+  return cc.colorMap(view_store.communityLevel);
+})
 </script>
 
 <template>
@@ -116,15 +138,18 @@ function handleSimplify(){
         <MenuBar w="1/1" class="border-b border-grey-400" v-model:nodeLinkOn="view_store.nodeLinkOn"
           v-model:matrixOn="view_store.matrixOn" v-model:brushOn="view_store.brushOn" @neighbors="handleNeighbor" 
           @simplify="handleSimplify"
+          @community="handleCommunity"
         />
       </header>
       <div class="flex flex-1 gap-2" px="4" py="2">
         <Transition name="flex-left">
           <div v-if="view_store.nodeLinkOn" class="flex-3">
             <ElementContainerVue title="node-link" h="1/1">
-              <NodeLink h="1/1" :color-map="color" :nodes="rdata.nodes" :links="rdata.links" :brush="view_store.brushOn"
+              <NodeLink h="1/1" :color-map="colorFn" :nodes="rdata.nodes" :links="rdata.links" :brush="view_store.brushOn"
                 :size="i => i.betweenness" :size-range="[5, 10]" v-model:selected-nodes="view_store.selectedNodes"
-                @layout-done="updateG($event.nodes, $event.links)" ref="nodelinkGraph" />
+                @layout-done="updateG($event.nodes, $event.links)" 
+
+                ref="nodelinkGraph" />
             </ElementContainerVue>
           </div>
         </Transition>

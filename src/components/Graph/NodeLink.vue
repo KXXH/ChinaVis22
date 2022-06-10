@@ -77,7 +77,7 @@ const props = defineProps({
 const emits = defineEmits(["update:selectedNodes", "layoutDone"]);
 // const width = 400;
 // const height = 400;
-const {width, height} = useElementBounding(el);
+const { width, height } = useElementBounding(el);
 
 // build graph
 const graph = createGraph(props.nodes, props.links, n => n.id, l => l.source, l => l.target);
@@ -184,18 +184,38 @@ let nodes = props.nodes.map(item => {
     return node;
 });
 
-const size = computed(()=>{
-    return d3.scaleLinear().domain([
-        _(props.nodes).map(props.size).min(),
-        _(props.nodes).map(props.size).max()
-    ]).range(props.sizeRange)
+const size = computed(() => {
+    return (n) => {
+        if (n == null) return props.sizeRange[0];
+        return d3.scaleLinear().domain([
+            _(props.nodes).map(props.size).min(),
+            _(props.nodes).map(props.size).max()
+        ]).range(props.sizeRange)(n)
+    }
+    // return d3.scaleLinear().domain([
+    //     _(props.nodes).map(props.size).min(),
+    //     _(props.nodes).map(props.size).max()
+    // ]).range(props.sizeRange)
 })
 
-function drawNode(node) {
+function drawBrushNode(node) {
     node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
     node.selectGfx.beginFill(0x0000ff);
     node.selectGfx.drawCircle(0, 0, size.value(props.size(node)));
     node.selectGfx.position = new PIXI.Point(node.x, node.y)
+}
+
+function drawForceNode(node) {
+    const gfx = node.gfx;
+    gfx.clear();
+    if (node.industry != "[]") {
+        gfx.lineStyle(NodeLineWidth, 0xfb7185);
+    }
+    else {
+        gfx.lineStyle(NodeLineWidth, 0xFFFFFF);
+    }
+    gfx.beginFill(props.colorMap(node));
+    gfx.drawCircle(0, 0, size.value(props.size(node)));
 }
 
 const brush = new useBrush()
@@ -206,7 +226,7 @@ const brush = new useBrush()
     .on("exit.clear", n => {
         n.selectGfx.clear();
     })
-    .on("forceEnter.draw", drawNode)
+    .on("forceEnter.draw", drawBrushNode)
     .on("brushstart.change", () => {
         emits("update:selectedNodes", brush.selection)
     })
@@ -214,7 +234,7 @@ const brush = new useBrush()
         "brush.change",
         () => {
             emits("update:selectedNodes", brush.selection)
-            brush.selection.forEach(drawNode);
+            brush.selection.forEach(drawBrushNode);
         }
     )
     .stop();
@@ -251,20 +271,13 @@ const force = new useForce()
     .nodes(nodes)
     .links(links)
     .drawCircle((gfx, node) => {
-        if (node.industry != "[]") {
-            gfx.lineStyle(NodeLineWidth, 0xfb7185);
-        }
-        else {
-            gfx.lineStyle(NodeLineWidth, 0xFFFFFF);
-        }
-        gfx.beginFill(props.colorMap(node));
-        gfx.drawCircle(0, 0, size.value(props.size(node)));
+        drawForceNode(node);
     })
-    .radius(n=>size.value(props.size(n)))
+    .radius(n => size.value(props.size(n)))
     .on("tick.select", () => {
         brush.selection.forEach(n => {
             n.selectGfx.clear()
-            drawNode(n);
+            drawForceNode(n);
         });
     })
     .on("end.cluster", handleForceStop)
@@ -272,18 +285,9 @@ const force = new useForce()
     .on("end.emit", () => emits("layoutDone", { nodes, links }));
 
 
-const mem = {}
-function randomColor(i) {
-    if (mem[i] != null) {
-        return mem[i];
-    }
-    const r = Math.round(Math.random() * 255);
-    const g = Math.round(Math.random() * 255);
-    const b = Math.round(Math.random() * 255);
-    const color = (r << 16) + (g << 8) + b;
-    mem[i] = color;
-    return color;
-}
+watch(() => props.colorMap, () => {
+    nodes.forEach(drawForceNode)
+})
 
 function hullCenter(points) {
     return d3.polygonCentroid(points);
