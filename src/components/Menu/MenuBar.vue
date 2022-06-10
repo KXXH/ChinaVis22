@@ -17,7 +17,7 @@
         </menu-item-vue>
         <menu-item-vue dropdown :dropdown-option="subgraphOpt">Subgraph</menu-item-vue>
         <menu-item-vue dropdown :dropdown-option="selectOpt" :on-select="handleSelect">Select</menu-item-vue>
-        <menu-item-vue dropdown :dropdown-option="viewOpt">View</menu-item-vue>
+        <menu-item-vue dropdown :on-select="handleView" :dropdown-option="viewOpt">View</menu-item-vue>
 
         <n-input placeholder="Search" class="!w-200px flex-2" size="small" type="text" my="2px" :theme-overrides='{
             "borderFocus": "0px",
@@ -60,7 +60,8 @@ const emits = defineEmits([
     "update:nodeLinkOn",
     "update:matrixOn",
     "update:brushOn",
-    "neighbors"
+    "neighbors",
+    "simplify"
 ])
 
 const isNLOn = useVModel(props, "nodeLinkOn", emits);
@@ -95,6 +96,11 @@ function handleSelect(key) {
     switch (key) {
         case "brush": isBrushOn.value = !isBrushOn.value; break;
         case "neighbors": emits("neighbors"); break;
+    }
+}
+function handleView(key){
+    switch(key){
+        case "simplify": emits("simplify"); break;
     }
 }
 const selectOpt = [

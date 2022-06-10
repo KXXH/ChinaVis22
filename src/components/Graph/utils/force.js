@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import * as d3 from "d3";
 import { RELATION_STRENGTH } from '../../../config/node_and_links';
+import { toRaw } from 'vue';
 
 export default class useForce {
     dispatch = d3.dispatch("tick", "end");
@@ -46,11 +47,12 @@ export default class useForce {
         return this;
     }
 
-    nodes(n) {
-        if (n == null) return this._nodes;
-        this._nodes = n;
+    nodes(nodes) {
+        if (nodes == null) return this._nodes;
+        this._nodes = toRaw(nodes);
         this.simulation.nodes(this._nodes);
         this._nodes.forEach(n => {
+            if(n.gfx) return;
             n.gfx = new PIXI.Graphics();
             this._drawCircle(n.gfx, n);
             this._container.addChildAt(n.gfx, this._container.children.length);
@@ -122,6 +124,13 @@ export default class useForce {
             node.gfx.scale.x =  k < 1 ? (1 / k) ** 0.5 : 1
             node.gfx.scale.y = k < 1 ? (1 / k) ** 0.5 : 1
         })
+        return this;
+    }
+
+    radius(fn){
+        if(fn==null) return this._radius;
+        this._radius = fn;
+        this.simulation.force("collision", d3.forceCollide().radius(fn));
         return this;
     }
 

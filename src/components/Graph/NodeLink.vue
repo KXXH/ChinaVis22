@@ -3,10 +3,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import * as PIXI from 'pixi.js';
+import { SVGPathNode, SVGScene } from "@pixi-essentials/svg";
 import { Viewport } from 'pixi-viewport'
-import { useElementSize, watchOnce, TransitionPresets, useVModel } from '@vueuse/core';
+import { useElementBounding, watchOnce, TransitionPresets, useVModel } from '@vueuse/core';
 import _ from "lodash";
 import * as d3 from "d3";
 import { useMagicKeys, logicOr } from '@vueuse/core'
@@ -74,8 +75,9 @@ const props = defineProps({
     }
 });
 const emits = defineEmits(["update:selectedNodes", "layoutDone"]);
-const width = 400;
-const height = 400;
+// const width = 400;
+// const height = 400;
+const {width, height} = useElementBounding(el);
 
 // build graph
 const graph = createGraph(props.nodes, props.links, n => n.id, l => l.source, l => l.target);
@@ -84,12 +86,34 @@ const graph = createGraph(props.nodes, props.links, n => n.id, l => l.source, l 
 const app = new PIXI.Application({
     width, height, backgroundColor: 0xffffff, resolution: window.devicePixelRatio || 1,
     antialias: true,
-    forceCanvas: false
+    autoDensity: true,
+    forceCanvas: false,
+    resolution: window.devicePixelRatio
 });
+
+const c = d3.arc()({
+    innerRadius: 0,
+    outerRadius: 100,
+    startAngle: 0,
+    endAngle: Math.PI / 2
+})
+const svg = document.createElement("svg");
+svg.setAttribute("viewBox", "0 0 100 100");
+const pathNode = document.createElement("path");
+pathNode.setAttribute("d", "M10 10 H 90 V 90 H 10 L 10 10");
+pathNode.setAttribute("fill", "black");
+// svg.append(pathNode)
+(new SVGPathNode(pathNode)).render(app.renderer);
+// console.log(svg)
+// const path = new SVGScene(svg, new SVGSceneContext());
+
+
+
 // viewport zoom and drag
 const container = new Viewport({
     interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
 })
+// container.addChild(path)
 const container2 = new Viewport({
     interaction: app.renderer.plugins.interaction // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
 })
@@ -121,7 +145,7 @@ let f = true;
 const tc1 = new transitionContainer().container(container);
 const tc2 = new transitionContainer().container(container2);
 watch(t, () => {
-    if (t.value||transition.transitionOn) return;
+    if (t.value || transition.transitionOn) return;
     if (f) {
         transition.transition(
             tc1, tc2
@@ -132,7 +156,7 @@ watch(t, () => {
             tc2, tc1
         )
     }
-    f=!f;
+    f = !f;
 })
 
 // three layers: node-link layer, circle layer, selection layer
@@ -156,14 +180,21 @@ let nodes = props.nodes.map(item => {
     let node = {
         ...item
     };
-    node.size = props.size(node)
+    // node.size = props.size(node)
     return node;
 });
+
+const size = computed(()=>{
+    return d3.scaleLinear().domain([
+        _(props.nodes).map(props.size).min(),
+        _(props.nodes).map(props.size).max()
+    ]).range(props.sizeRange)
+})
 
 function drawNode(node) {
     node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
     node.selectGfx.beginFill(0x0000ff);
-    node.selectGfx.drawCircle(0, 0, calSize(node.size));
+    node.selectGfx.drawCircle(0, 0, size.value(props.size(node)));
     node.selectGfx.position = new PIXI.Point(node.x, node.y)
 }
 
@@ -176,7 +207,7 @@ const brush = new useBrush()
         n.selectGfx.clear();
     })
     .on("forceEnter.draw", drawNode)
-    .on("brushstart.change", ()=>{
+    .on("brushstart.change", () => {
         emits("update:selectedNodes", brush.selection)
     })
     .on(
@@ -202,19 +233,10 @@ watch(() => props.brush, () => {
 watch(alt, v => brush.alt(v));
 watch(ctrl, v => brush.ctrl(v))
 
-function forceSelect(nodes){
+function forceSelect(nodes) {
     brush.select(nodes);
     return nodes;
 }
-
-
-const maxSize = Math.max(...nodes.map(i => i.size));
-const minSize = Math.min(...nodes.map(i => i.size));
-
-function calSize(s) {
-    return (s - minSize) / (maxSize - minSize) * props.sizeRange[1] + props.sizeRange[0]
-}
-
 
 let links = props.links.map(item => {
     let link = {
@@ -236,10 +258,11 @@ const force = new useForce()
             gfx.lineStyle(NodeLineWidth, 0xFFFFFF);
         }
         gfx.beginFill(props.colorMap(node));
-        gfx.drawCircle(0, 0, calSize(node.size));
+        gfx.drawCircle(0, 0, size.value(props.size(node)));
     })
-    .on("tick.select", ()=>{
-        brush.selection.forEach(n=>{
+    .radius(n=>size.value(props.size(n)))
+    .on("tick.select", () => {
+        brush.selection.forEach(n => {
             n.selectGfx.clear()
             drawNode(n);
         });
@@ -247,7 +270,6 @@ const force = new useForce()
     .on("end.cluster", handleForceStop)
     .on("end.quadtree", () => brush.quadtree(true))
     .on("end.emit", () => emits("layoutDone", { nodes, links }));
-
 
 
 const mem = {}
@@ -377,7 +399,7 @@ function handleForceStop() {
 
         group.addChild(gfx);
         group.addChild(gfx2);
-        hullLayer.addChild(group);
+        // hullLayer.addChild(group);
     }
 }
 
@@ -407,7 +429,7 @@ function initDraw() {
     container2.resize(width, height)
     // simulation initial data
     force.width(width).height(height);
-    force.simulation.alphaMin(0.01)
+    force.simulation.alphaMin(0.01);
     force.start();
 }
 
@@ -415,6 +437,26 @@ onMounted(() => {
     initDraw();
 });
 
-defineExpose({forceSelect})
+watch([() => props.nodes, () => props.links], () => {
+    hullLayer.removeChildren(0);
+
+
+    const addedNodes = _.differenceBy(props.nodes, force.nodes(), n => n.id);
+    const deledNodes = _.differenceBy(force.nodes(), props.nodes, n => n.id);
+    addedNodes.forEach(n => force.nodes().push(n));
+    force.nodes(force.nodes());
+    deledNodes.forEach(n => n.gfx.clear());
+    _.pullAll(force.nodes(), deledNodes);
+
+
+    const addedLinks = _.differenceBy(props.links, force.links(), l => l.source + l.target)
+    const deledLinks = _.differenceBy(force.links(), props.links, l => l.source + l.target)
+    addedLinks.forEach(l => force.links().push(l));
+    const t = _.pullAll(force.links(), deledLinks);
+    force.links(t)
+    force.simulation.alpha(0.3).restart();
+})
+
+defineExpose({ forceSelect })
 
 </script>

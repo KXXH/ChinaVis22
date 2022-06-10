@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, reactive, shallowReactive } from "vue";
 import { useMagicKeys } from '@vueuse/core'
 import { NConfigProvider, NScrollbar } from "naive-ui";
 import { viewStore } from "./store/view";
@@ -21,10 +21,18 @@ import createGraph from "./algorithms/createGraph";
 import neighbors from "./algorithms/neighbors";
 import { extend_graph } from "./algorithms/neighbors";
 import { node_stat } from "./algorithms/statistics";
+import { simplify } from './algorithms/simplify';
+
+import _ from "lodash";
 
 document.onkeydown = (e) => {
   e.preventDefault();
 }
+
+const rdata = shallowReactive({
+  links: _.clone(data.links),
+  nodes: _.clone(data.nodes),
+});
 
 const view_store = viewStore();
 const nodelinkGraph = ref(null);
@@ -40,6 +48,11 @@ function updateG(nodes, links) {
 
 function handleNeighbor() {
   view_store.selectedNodes=nodelinkGraph.value.forceSelect(neighbors(g, view_store.selectedNodes))
+}
+
+function handlePanelSelect(v){
+  view_store.selectedNodes=nodelinkGraph.value.forceSelect(neighbors(g, v))
+
 }
 
 const { Ctrl_E, Ctrl_R } = useMagicKeys();
@@ -61,7 +74,39 @@ const sg = computed(() => {
   return getSubgraph(new Set(view_store.selectedNodes.keys()), g);
 })
 
-console.log(node_stat(g));
+function test(){
+  rdata.nodes = data.nodes.slice(0, 1000);
+  const rdataS = new Set(data.nodes.map(n=>n.id));
+  rdata.links = data.links.filter(l=>(rdataS.has(l.source)&&rdataS.has(l.target))||(rdataS.has(l.source)&&rdataS.has(l.target)));
+
+}
+
+let simplifyFlag = false;
+function handleSimplify(){
+  if(simplifyFlag){
+    simplifyFlag = false;
+    rdata.nodes = data.nodes;
+    rdata.links = data.links;
+    return;
+  }
+  simplifyFlag = true;
+  const g = createGraph(rdata.nodes, rdata.links, n => n.id, l => l.source, l => l.target);
+  const sg = simplify(g);
+  const ns = [];
+  const ls = [];
+  sg.forEachNode(n=>{
+    ns.push(n)
+  });
+  sg.forEachLink(l=>{
+    ls.push({
+      source:l.fromId,
+      target:l.toId
+    });
+  });
+  console.log(ns, ls)
+  rdata.nodes = ns;
+  rdata.links = ls;
+}
 </script>
 
 <template>
@@ -69,13 +114,15 @@ console.log(node_stat(g));
     <div id="container">
       <header>
         <MenuBar w="1/1" class="border-b border-grey-400" v-model:nodeLinkOn="view_store.nodeLinkOn"
-          v-model:matrixOn="view_store.matrixOn" v-model:brushOn="view_store.brushOn" @neighbors="handleNeighbor" />
+          v-model:matrixOn="view_store.matrixOn" v-model:brushOn="view_store.brushOn" @neighbors="handleNeighbor" 
+          @simplify="handleSimplify"
+        />
       </header>
       <div class="flex flex-1 gap-2" px="4" py="2">
         <Transition name="flex-left">
           <div v-if="view_store.nodeLinkOn" class="flex-3">
             <ElementContainerVue title="node-link" h="1/1">
-              <NodeLink h="1/1" :color-map="color" :nodes="data.nodes" :links="data.links" :brush="view_store.brushOn"
+              <NodeLink h="1/1" :color-map="color" :nodes="rdata.nodes" :links="rdata.links" :brush="view_store.brushOn"
                 :size="i => i.betweenness" :size-range="[5, 10]" v-model:selected-nodes="view_store.selectedNodes"
                 @layout-done="updateG($event.nodes, $event.links)" ref="nodelinkGraph" />
             </ElementContainerVue>
@@ -92,7 +139,7 @@ console.log(node_stat(g));
         </Transition>
         <div class="flex-1">
           <ElementContainerVue title="node-link" h="1/1">
-            <Panel h="1/1" :graph="sg" />
+            <Panel h="1/1" :graph="sg" @select="handlePanelSelect"/>
           </ElementContainerVue>
         </div>
       </div>

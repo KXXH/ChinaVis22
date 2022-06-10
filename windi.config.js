@@ -12,8 +12,11 @@ export default defineConfig({
             flex:{
                 2: "2 2 0%",
                 3: "3 3 0%"
-
-            }
+            },
+            transitionProperty: {
+                height: 'height',
+                width: 'width'
+            },
         }
     },
     variants: {

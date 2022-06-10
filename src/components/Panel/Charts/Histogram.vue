@@ -12,25 +12,22 @@
                 :y1="y(scaleHeight(v))" :y2="y(scaleHeight(v))" class="stroke-gray-300" />
         </g>
         <g>
-            <rect class="transition-all duration-1000" v-for="([xi, yi]) in _.zip(props.x, heights)" :x="x(xi)"
-                :y="y(yi)" :width="histogramBox.width / heights.length" :height="yi" fill="#a5b8d7" />
+            <rect class="transition-height duration-1000" v-for="([xi, yi], i) in _.zip(props.x, heights)" :x="x(xi)"
+                :y="y(yi)" :width="histogramBox.width / heights.length" :height="yi"
+                :fill="selected[i] || brush.x0 == brush.x1 ? '#a5b8d7' : '#d1d5db'" />
         </g>
 
         <path class="stroke-[#4e73b0] fill-none" :d="lineD" />
-        <OnClickOutside @trigger="">
-            <rect class="fill-gray-400 opacity-50" v-if="brush.on" :x="Math.min(x(brush.x0), x(brush.x1))"
-                :y="histogramBox.y0" :width="Math.abs(x(brush.x1) - x(brush.x0))" :height="histogramBox.height" />
-        </OnClickOutside>
-
+        <rect class="fill-gray-400 opacity-50" v-if="brush.on" :x="Math.min(x(brush.x0), x(brush.x1))"
+            :y="histogramBox.y0" :width="Math.abs(x(brush.x1) - x(brush.x0))" :height="histogramBox.height" />
 
     </svg>
 </template>
 
 <script setup>
 import { scaleLinear, scaleLog, range, line, format } from "d3";
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useElementSize, useMounted, TransitionPresets, reactiveComputed, useElementBounding } from "@vueuse/core";
-import { OnClickOutside } from '@vueuse/components'
 import { kernelDensityEstimation } from 'simple-statistics'
 import _ from "lodash";
 const props = defineProps(["x", "y"]);
@@ -45,6 +42,7 @@ const viewBox = reactiveComputed(() => ({
     width: width.value,
     height: height.value
 }))
+const emits = defineEmits(["brush"]);
 
 const p = 2;
 const histogramBox = reactiveComputed(() => ({
@@ -64,16 +62,24 @@ let brush = reactive({
 function handleBrushStart(e) {
     brush.on = true;
     brush.show = true;
-    console.log(e);
-    brush.x0 = x.value.invert(e.offsetX);
+    brush.x1 = brush.x0 = x.value.invert(e.offsetX);
 }
 
 function handleBrush(e) {
-    brush.x1 = x.value.invert(e.offsetX)
+    if (!brush.on) return;
+    brush.x1 = x.value.invert(e.offsetX);
 }
 
 function handleBrushEnd(e) {
     brush.on = false;
+    const x0 = Math.min(brush.x0, brush.x1);
+    const x1 = Math.max(brush.x0, brush.x1);
+    emits("brush", [x0, x1]);
+}
+
+function handleBrushClose(e) {
+    brush.show = false;
+
 }
 
 const scaleHeight = computed(() => {
@@ -99,13 +105,38 @@ const heights = computed(() => {
     }
     return props.y.map((n) => scaleHeight.value(n + 1));
 })
+const selected = computed(() => {
+    const x0 = Math.min(brush.x0, brush.x1);
+    const x1 = Math.max(brush.x0, brush.x1);
+    return props.x.map(x => x >= x0 && x <= x1)
+})
+function fillWith(c){
+    console.log(c)
+    let res=[];
+    for(const k in c){
+        const v = c[k];
+        for(let i=0;i<v;i++){
+            res.push(parseInt(k))
+        }
+    }
+    return res;
+}
 const kde = computed(() => {
-    return kernelDensityEstimation(heights.value, "gaussian", 3);
+    return kernelDensityEstimation(fillWith(_.zipObject(props.x,props.y)), "gaussian", 5);
 })
 const lineD = computed(() => {
-    if (heights.value.length < 2) return ""
-    const scale = scaleLog().domain([0.001, 1]).range([0, histogramBox.height])
-    return line()(range(0, heights.value.length, .1).map(i => [x.value(i), y.value(scale(kde.value(i)))]));
+    if (heights.value.length < 2) return "";
+    const samples = range(0, Math.max(...props.x), .1);
+    const kdes =samples.map(kde.value);
+    const scale = scaleLog().domain([Math.min(...kdes), 1]).range([0, histogramBox.height])
+    return line()(_.zip(samples.map(x.value), kdes.map(scale).map(y.value)));
 })
-
+watch(props, ()=>{
+    brush.x1 = brush.x0 = 0;
+})
+// watch(selected, () => {
+//     const x0 = Math.min(brush.x0, brush.x1);
+//     const x1 = Math.max(brush.x0, brush.x1);
+//     emits("brush",[x0, x1]);
+// })
 </script>
