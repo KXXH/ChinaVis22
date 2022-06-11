@@ -15,7 +15,13 @@
         </div>
         <!-- <div class="grid grid-cols-[1fr,1fr]"> -->
         <div class="border m-2 p-2 h-150px">
-            <pie-vue class="h-full" :industry="industry" :type="type" />
+            <pie-vue 
+                class="h-full" 
+                :industry="industry" 
+                :type="type" 
+                @selecttype="handlePieSelect('type', $event)"
+                @selectindustry="handlePieSelect('industry', $event)"
+            />
         </div>
         <div class="border m-2 h-150px p-2 text-center">
             <egg-vue 
@@ -95,4 +101,13 @@ const jump = computed(()=>{
     return res;
 })
 
+function handlePieSelect(type, value){
+    const res = new Map();
+    g.value.forEachNode(n=>{
+        if(n[type]==value){
+            res.set(n.id, n)
+        }
+    });
+    emits("select", res);
+}
 </script>

@@ -105,7 +105,9 @@ const emits = defineEmits([
     "simplify",
     "community",
     "search",
-    "addSubgraph"
+    "addSubgraph",
+    "clear",
+    "reset"
 ])
 
 function onSearchDone(v){
@@ -143,6 +145,8 @@ function handleView(key) {
         case "simplify": emits("simplify"); break;
         case "communityd": show.value=true; break;
         case "type": emits("color-type"); break;
+        case "clear": emits("clear"); break;
+        case "reset": emits("reset"); break;
     }
 }
 function handleSubgraph(key) {
@@ -177,8 +181,12 @@ const viewOpt = computed(() => ([
         key: "simplify"
     },
     {
-        label: "maximum shown nodes",
-        key: "maxNodes"
+        label: "reset",
+        key: "reset"
+    },
+    {
+        label:"clear",
+        key:"clear"
     },
     {
         label: "color encoding",
@@ -208,36 +216,6 @@ const viewOpt = computed(() => ([
             }
         ]
     },
-    {
-        label: "layer",
-        key: "layer",
-        children: [
-            {
-                label: "community detection",
-                key: "community",
-                children: [
-                    {
-                        label: "CW Algorithm",
-                        key: "cw"
-                    },
-                    {
-                        label: "Louvain Algorithm",
-                        key: "louvain"
-                    }
-                ]
-            },
-            {
-                label: "spatial clustering",
-                key: "clustering",
-                children: [
-                    {
-                        label: "DBSCAN Algorithm",
-                        key: "dbscan"
-                    }
-                ]
-            }
-        ]
-    }
 ]));
 
 

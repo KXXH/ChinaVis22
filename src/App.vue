@@ -78,7 +78,25 @@ function handleAddCollection(){
     og: _.clone(g)
   })
 }
-
+function handleAddCollectionByTooltip(){
+  const sg = view_store.hoverNode?.node?.subgraph;
+  const nodes = new Map();
+  sg.forEachNode((n)=>{
+    nodes.set(n.id,n);
+  });
+  view_store.collections.push({
+    nodes,
+    og:_.clone(g)
+  })
+}
+function handleReset(){
+  rdata.nodes = data.nodes;
+  rdata.links = data.links;
+}
+function handleClear(){
+  rdata.nodes = [];
+  rdata.links = [];
+}
 const { Ctrl_E, Ctrl_R } = useMagicKeys();
 watch(Ctrl_E, v => {
   if (v) {
@@ -152,10 +170,14 @@ watch(g, ()=>{
 <template>
   <n-config-provider>
     <div id="container">
-      <tooltip-vue class="absolute w-max h-min" :style="{
-        top: `${view_store?.hoverNode?.y-10}px`,
-        left: `${view_store?.hoverNode?.x+20}px`,
-      }" />
+      <tooltip-vue 
+        class="absolute w-max h-min" 
+        :style="{
+          top: `${view_store?.hoverNode?.y-10}px`,
+          left: `${view_store?.hoverNode?.x+20}px`,
+        }" 
+        @add-collection="handleAddCollectionByTooltip"
+      />
       <header>
         <MenuBar w="1/1" class="border-b border-grey-400"       
           v-model:nodeLinkOn="view_store.nodeLinkOn"
@@ -165,6 +187,8 @@ watch(g, ()=>{
           @simplify="handleSimplify"
           @search="handleSearch"
           @add-subgraph="handleAddCollection"
+          @clear="handleClear"
+          @reset="handleReset"
           :graph="g" 
         />
       </header>

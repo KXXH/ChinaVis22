@@ -6,19 +6,22 @@
         })"
     >
         <node-link-vue 
-            class="h-300px w-300px shadow-inner"
+            class="h-300px w-300px border"
             v-if="view.hoverNode?.node?.subgraph"
             :nodes="nodes" :links="links"
             :brush="false"  :color-map="color"
             :size="i => i.betweenness" :size-range="[5, 10]"
             :interactive="false"
         />
+        <template #footer>
+            <n-button v-if="view.hoverNode!=null"  @click="handleCollection" class="w-full" type="info">add to collection</n-button>
+        </template>
     </n-card>
 
 </template>
 
 <script setup>
-import { NCard } from 'naive-ui';
+import { NCard, NButton } from 'naive-ui';
 import { watch } from 'vue';
 import { viewStore } from '../../store/view';
 import { useMouse } from '@vueuse/core';
@@ -27,7 +30,7 @@ import _ from "lodash";
 import { computed } from '@vue/reactivity';
 import color from "../../config/colormap";
 
-const {x: mouseX, y: mouseY} = useMouse();
+const emits = defineEmits("addCollection")
 
 const view = viewStore();
 // watch(()=>view.hoverNode, ()=>{
@@ -61,4 +64,8 @@ const links = computed(()=>{
     })
     return res;
 })
+
+function handleCollection(){
+    emits("addCollection");
+}
 </script>
