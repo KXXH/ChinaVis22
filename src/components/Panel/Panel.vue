@@ -1,14 +1,7 @@
 <template>
     <div class="flex flex-col">
         <legend-vue />
-        <div class="border m-2" h="100px">
-            <histogram-vue :x="Array.from(stats.count.byDegree.values()).map(v => v.x0) ?? []" :y="histData"
-                @brush="handleBrush" />
-        </div>
-        <div class="border m-2">
-            <pie-vue :industry="industry" :type="type"></pie-vue>
-        </div>
-        <div class="flex w-full mx-1">
+        <div class="flex mx-2 border">
             <n-statistic label="Nodes" class="m-2 flex-1">
                 <n-number-animation :from="0" :to="node_count" />
             </n-statistic>
@@ -16,6 +9,14 @@
                 <n-number-animation :from="0" :to="link_count" />
             </n-statistic>
         </div>
+        <div class="border m-2" h="100px">
+            <histogram-vue :x="Array.from(stats.count.byDegree.values()).map(v => v.x0) ?? []" :y="histData"
+                @brush="handleBrush" />
+        </div>
+        <div class="border m-2">
+            <pie-vue :industry="industry" :type="type"></pie-vue>
+        </div>
+        
 
     </div>
 </template>

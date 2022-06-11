@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed, reactive, shallowReactive } from "vue";
+import { ref, watch, computed, shallowRef, shallowReadonly, shallowReactive } from "vue";
 import { useMagicKeys, useMouse } from '@vueuse/core'
 import { NConfigProvider, NScrollbar } from "naive-ui";
 import { viewStore } from "./store/view";
@@ -53,14 +53,14 @@ const subgraphs = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 ]
 
-let g = createGraph(data.nodes, data.links, n => n.id, l => l.source, l => l.target);
+let g = shallowRef(createGraph(data.nodes, data.links, n => n.id, l => l.source, l => l.target));
 function updateG(nodes, links) {
   console.log("update g")
-  g = createGraph(nodes, links, n => n.id, l => l.source.id, l => l.target.id)
+  // g.value = createGraph(nodes, links, n => n.id, l => l.source.id, l => l.target.id)
 }
 
 function handleNeighbor() {
-  view_store.selectedNodes = nodelinkGraph.value.forceSelect(neighbors(g, view_store.selectedNodes))
+  view_store.selectedNodes = nodelinkGraph.value.forceSelect(neighbors(g.value, view_store.selectedNodes))
 }
 
 function handlePanelSelect(v) {
@@ -79,18 +79,18 @@ watch(Ctrl_E, v => {
 })
 watch(Ctrl_R, v => {
   if (v) {
-    view_store.selectedNodes = nodelinkGraph.value.forceSelect(extend_graph(g, view_store.selectedNodes))
+    view_store.selectedNodes = nodelinkGraph.value.forceSelect(extend_graph(g.value, view_store.selectedNodes))
   }
 })
 
 const sg = computed(() => {
   if (!view_store.selectedNodes.size) {
-    return _.clone(g);
+    return _.clone(g.value);
   }
-  return getSubgraph(new Set(view_store.selectedNodes.keys()), g);
+  return getSubgraph(new Set(view_store.selectedNodes.keys()), g.value);
 })
 
-const cc = new communityColor(_.clone(g));
+const cc = new communityColor(_.clone(g.value));
 let simplifyFlag = false;
 let simplifyLevel = 0;
 function handleSimplify() {
@@ -109,7 +109,7 @@ function handleSimplify() {
   const ns = [];
   const ls = [];
   sg.forEachNode(n => {
-    n.subgraph = getSubgraph(n.data.leaf, g);
+    n.subgraph = getSubgraph(n.data.leaf, g.value);
     ns.push(n)
   });
   sg.forEachLink(l => {
@@ -122,13 +122,6 @@ function handleSimplify() {
   rdata.links = ls;
 }
 
-const cg = new ColorGenerator();
-
-let clusters = [];
-function getClass(i, id) {
-  if (i == clusters.length - 1) return clusters[i].getClass(id)
-  return getClass(i + 1, clusters[i].getClass(id))
-}
 // function handleCommunity(){
 //   let c = louvain(gg[gg.length-1]);
 //   gg.push(coarsen(gg[gg.length-1], c))
@@ -142,12 +135,16 @@ function getClass(i, id) {
 const colorFn = computed(() => {
   return cc.colorMap(view_store.communityLevel);
 })
+
+watch(g, ()=>{
+  console.log("g changed!")
+})
 </script>
 
 <template>
   <n-config-provider>
     <div id="container">
-      <tooltip-vue class="absolute w-300px h-300px" :style="{
+      <tooltip-vue class="absolute w-max h-min" :style="{
         top: `${view_store?.hoverNode?.y-10}px`,
         left: `${view_store?.hoverNode?.x+20}px`,
       }" />

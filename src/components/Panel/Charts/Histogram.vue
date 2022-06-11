@@ -4,7 +4,7 @@
         @mouseup="handleBrushEnd">
         <g class="text-[10px]" ref="yaxis" text-anchor="end" :transform="`translate(${yaxis_width}, 0)`">
             <text class="fill-gray-600" v-for="v in scaleHeight.ticks(3)" x="0" :y="y(scaleHeight(v))" dy="2px">
-                {{ format("~s")(v-1) }}
+                {{ v==1?0:format("~s")(v) }}
             </text>
         </g>
         <g>

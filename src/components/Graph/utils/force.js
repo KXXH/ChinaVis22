@@ -17,6 +17,7 @@ export default class useForce {
     _links = [];
     _width;
     _height;
+    _radius = n=>10;
 
     _drawCircle = (gfx, n)=>{
         gfx.beginFill();
@@ -54,6 +55,7 @@ export default class useForce {
         this._nodes.forEach(n => {
             if(n.gfx) return;
             n.gfx = new PIXI.Graphics();
+
             this._drawCircle(n.gfx, n);
             this._container.addChildAt(n.gfx, this._container.children.length);
         })
@@ -96,6 +98,10 @@ export default class useForce {
         this._nodes.forEach(n=>{
             if(!n.gfx) return;
             n.gfx.clear();
+            n.gfx.interactive = true;
+            n.gfx.on("click", ()=>{
+                console.log("click!!");
+            })
             this._drawCircle(n.gfx, n);
         })
         return this;
@@ -149,6 +155,9 @@ export default class useForce {
             this._nodes.forEach(node => {
                 let { id, x, y, gfx } = node;
                 gfx.position = new PIXI.Point(x, y);
+                // const globalPos = this._container.transform.worldTransform.applyInverse(new PIXI.Point(x, y))
+                // gfx.hitArea.x =globalPos.x;
+                // gfx.hitArea.y =globalPos.y;
             })
             this._beforeDrawLine(this._linkGfx)
             this._links.forEach(l=>this._drawLine(this._linkGfx, l));

@@ -1,5 +1,5 @@
 <template>
-    <div class="grid grid-cols-[min-content,1fr] gap-1 border rounded m-2 p-1 h-min">
+    <div class="legend">
         <square-fill text="[#7fc97f]" /> <span>Domain</span>
         <square-fill text="[#beaed4]" /> <span>IP</span>
         <square-fill text="[#fdc086]" /> <span>Cert</span>
@@ -12,3 +12,11 @@
 <script setup>
 import SquareFill from "~icons/akar-icons/square-fill"
 </script>
+
+<style scoped>
+.legend{
+    @apply grid gap-1 border rounded m-2 p-1 h-min;
+    grid-template-columns: repeat(auto-fit, 25px minmax(100px, 1fr));
+}
+
+</style>

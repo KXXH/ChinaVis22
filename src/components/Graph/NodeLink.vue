@@ -75,6 +75,10 @@ const props = defineProps({
     selectedNodes: {
         type: Map,
         default: () => new Map()
+    },
+    interactive:{
+        type:Boolean,
+        default:true
     }
 });
 const emits = defineEmits(["update:selectedNodes", "layoutDone"]);
@@ -203,21 +207,53 @@ const size = computed(() => {
 
 function drawBrushNode(node) {
     node.selectGfx.lineStyle(NodeLineWidth, 0xFFFFFF);
-    node.selectGfx.beginFill(0x0000ff);
+    const level = node.level??3;
+    const alpha = d3.scaleOrdinal()
+        .domain([3, 2, 1, 0])
+        .range([0x0000ff, 0x696aff, 0xb5b6fe, 0xeff1fd])
+        // .range([0x000000, 0x0000ff, 0x00ff00, 0xff0000])
+    // console.log("alpha", alpha(level))
+    node.selectGfx.beginFill(alpha(level));
     node.selectGfx.drawCircle(0, 0, size.value(props.size(node)));
     node.selectGfx.position = new PIXI.Point(node.x, node.y)
 }
 
+container.on("mousedown", ()=>{
+    if(!props.interactive) return;
+    if(view.hoverNode?.lock){
+        view.hoverNode = null;
+    }
+})
+
 function drawForceNode(node, color) {
     const gfx = node.gfx;
     gfx.clear();
+    gfx.interactive = props.interactive;
+    gfx.on("mouseover", () => {
+        if(view.hoverNode?.lock){
+            return;
+        }
+        view.hoverNode = {
+            x: container.transform.worldTransform.apply(new PIXI.Point(node.x, node.y)).x,
+            y: container.transform.worldTransform.apply(new PIXI.Point(node.x, node.y)).y,
+            lock:false,
+            node: node
+        }
+    });
+    gfx.on("click", ()=>{
+        view.hoverNode.lock=true;
+    })
+    gfx.on("mouseout", ()=>{
+        if(view.hoverNode==null||view.hoverNode.lock) return;
+        view.hoverNode = null;
+    })
     if (node.industry != "[]") {
         gfx.lineStyle(NodeLineWidth, 0xfb7185);
     }
     else {
         gfx.lineStyle(NodeLineWidth, 0xFFFFFF);
     }
-    gfx.beginFill(color??props.colorMap(node));
+    gfx.beginFill(color ?? props.colorMap(node));
     gfx.drawCircle(0, 0, size.value(props.size(node)));
 }
 
@@ -255,26 +291,26 @@ watch(() => props.brush, () => {
 })
 
 let lastPoint = null;
-container.on("mousemove", (e)=>{
-    if(lastPoint!=null){
-        drawForceNode(lastPoint);
-        lastPoint = null;
-    }
-    let { x, y } = e.data.global;
-    let {x:tx, y:ty} = container.transform.worldTransform.applyInverse(new PIXI.Point(x,y))
-    const node = brush.find(tx, ty, props.sizeRange[1]);
-    if(node==null) {
-        view.hoverNode = null;
-        return;
-    }
-    drawForceNode(node, 0x00ff00)
-    lastPoint = node;
-    view.hoverNode = {
-        node:node,
-        x: container.transform.worldTransform.apply(new PIXI.Point(node.x, node.y)).x,
-        y: container.transform.worldTransform.apply(new PIXI.Point(node.x, node.y)).y
-    };
-})
+// container.on("mousemove", (e)=>{
+//     if(lastPoint!=null){
+//         drawForceNode(lastPoint);
+//         lastPoint = null;
+//     }
+//     let { x, y } = e.data.global;
+//     let {x:tx, y:ty} = container.transform.worldTransform.applyInverse(new PIXI.Point(x,y))
+//     const node = brush.find(tx, ty, props.sizeRange[1]);
+//     if(node==null) {
+//         view.hoverNode = null;
+//         return;
+//     }
+//     drawForceNode(node, 0x00ff00)
+//     lastPoint = node;
+//     view.hoverNode = {
+//         node:node,
+//         x: container.transform.worldTransform.apply(new PIXI.Point(node.x, node.y)).x,
+//         y: container.transform.worldTransform.apply(new PIXI.Point(node.x, node.y)).y
+//     };
+// })
 
 watch(alt, v => brush.alt(v));
 watch(ctrl, v => brush.ctrl(v))
@@ -312,7 +348,7 @@ const force = new useForce()
 
 
 watch(() => props.colorMap, () => {
-    nodes.forEach(n=>drawForceNode(n))
+    nodes.forEach(n => drawForceNode(n))
 })
 
 function hullCenter(points) {
@@ -489,7 +525,7 @@ watch([() => props.nodes, () => props.links], () => {
 
 defineExpose({ forceSelect })
 
-onBeforeUnmount(()=>{
+onBeforeUnmount(() => {
     app.destroy();
 })
 </script>

@@ -242,7 +242,11 @@ export default class useBrush{
             if (node.selectGfx == null) {
                 // node.selectGfx = new PIXI.Graphics();
                 // this.selectionLayer.addChildAt(node.selectGfx, 0);
-                return [id, this._nodes.find(n => n.id == node.id)];
+                const node_t = this._nodes.find(n => n.id == node.id);
+                return [id, {
+                    ...node_t,
+                    ...node
+                }];
             }
             else return [id, node];
         }))

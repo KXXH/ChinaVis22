@@ -157,7 +157,7 @@ function getmatrix(g,num=500) {
     //     newdis.push(tmp)
     // }
     // console.log(newdis)
-    return {"nodes":newnodes,"links":newlinks};
+    // return {"nodes":newnodes,"links":newlinks};
 
 
 }
