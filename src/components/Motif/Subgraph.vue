@@ -8,18 +8,17 @@
             :size-range="[5, 10]" :size="i => i.betweenness"
         />
         <div class="flex flex-col h-full bg-gray-200">
-            <n-button quaternary size="small" circle>
+            <n-button quaternary size="small" circle @click="handleAdd">
                 <n-icon>
                     <IconAdd />
                 </n-icon>
             </n-button>
-            <n-button quaternary size="small" circle>
+            <n-button quaternary size="small" circle @click="handleRemove">
                 <n-icon>
                     <IconRemove />
                 </n-icon>
             </n-button>
         </div>
-
     </div>
 
 
@@ -43,6 +42,7 @@ const props = defineProps({
         default: createGraph()
     }
 })
+const emits = defineEmits(["add", "remove"])
 const sg = computed(() => {
     return getSubgraph(new Set(props.nodes.keys()), unref(props.og));
 })
@@ -65,4 +65,10 @@ const links = computed(() => {
     });
     return res;
 })
+function handleAdd(){
+    emits("add")
+}
+function handleRemove(){
+    emits("remove")
+}
 </script>

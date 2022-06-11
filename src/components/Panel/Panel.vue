@@ -104,11 +104,21 @@ const jump = computed(()=>{
 
 function handlePieSelect(type, value){
     const res = new Map();
-    g.value.forEachNode(n=>{
-        if(n[type]==value){
-            res.set(n.id, n)
-        }
-    });
+    if(type=="type"){
+        g.value.forEachNode(n=>{
+            if(n.data[type]==value){
+                res.set(n.id, n)
+            }
+        });
+    }
+    else{
+        g.value.forEachNode(n=>{
+            if(n.data[type].includes(value)){
+                res.set(n.id, n)
+            }
+        });
+    }
+
     emits("select", res);
 }
 </script>

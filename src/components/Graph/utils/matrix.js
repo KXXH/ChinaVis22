@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { emit } from "process";
+// import { emit } from "process";
 import * as reorder from "reorder.js";
 export function draw(d, caiyang) {
 

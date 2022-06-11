@@ -64,6 +64,7 @@ function handleNeighbor() {
 }
 
 function handlePanelSelect(v) {
+  nodelinkGraph.value.forceExit(view_store.selectedNodes)
   view_store.selectedNodes = nodelinkGraph.value.forceSelect(v)
 }
 
@@ -96,6 +97,28 @@ function handleReset(){
 function handleClear(){
   rdata.nodes = [];
   rdata.links = [];
+}
+function handleAddFromCollection(sg){
+  if(rdata.node.length>0){
+    handleClear();
+  }
+  const ns = [];
+  const ls = [];
+  sg.forEachNode(n => {
+    n.subgraph = getSubgraph(n.data.leaf, g.value);
+    ns.push(n)
+  });
+  sg.forEachLink(l => {
+    ls.push({
+      source: l.fromId,
+      target: l.toId
+    });
+  });
+  rdata.nodes = ns;
+  rdata.links = ls;
+}
+function handleRemoveCollection(i){
+  _.pullAt(view_store.collections, i);
 }
 const { Ctrl_E, Ctrl_R } = useMagicKeys();
 watch(Ctrl_E, v => {
@@ -224,12 +247,14 @@ watch(g, ()=>{
           <div
             class="flex flex-row flex-nowrap overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400  scrollbar-thumb-rounded-full gap-2"
             h="1/1" w="1/1">
-            <div class="rounded border" v-for="sg in view_store.collections" h="1/1">
+            <div class="rounded border" v-for="sg,i in view_store.collections" h="1/1">
               <Subgraph 
                 class="min-w-200px" 
                 h="1/1" 
                 :og="sg.og"
                 :nodes="sg.nodes"
+                @remove="handleRemoveCollection(i)"
+                @add="handleAddCollection(sg)"
               />
             </div>
           </div>

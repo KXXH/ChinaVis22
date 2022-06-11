@@ -4,7 +4,7 @@ import { shallowRef } from 'vue'
 export const viewStore = defineStore("view", {
     state: ()=>({
         nodeLinkOn:true,
-        matrixOn:true,
+        matrixOn:false,
         brushOn:false,
         selectedNodes: new Map(),
         communityLevel: 0,

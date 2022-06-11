@@ -274,6 +274,10 @@ const brush = new useBrush()
         n.selectGfx.clear();
     })
     .on("forceEnter.draw", drawBrushNode)
+    .on("forceExit.clear", n=>{
+        n.selectGfx.clear()
+    })
+
     .on("brushstart.change", () => {
         emits("update:selectedNodes", brush.selection)
     })
@@ -285,6 +289,12 @@ const brush = new useBrush()
         }
     )
     .stop();
+
+// watch(()=>view.selectedNodes, (newVal, oldVal)=>{
+//     oldVal.forEach(n=>{
+//         n.selectGfx.clear();
+//     });
+// })
 
 watch(() => props.brush, () => {
     if (props.brush) {
@@ -321,6 +331,10 @@ let lastPoint = null;
 
 watch(alt, v => brush.alt(v));
 watch(ctrl, v => brush.ctrl(v))
+
+function forceExit(nodes){
+    brush.unselect(nodes);
+}
 
 function forceSelect(nodes) {
     brush.select(nodes);
@@ -533,7 +547,7 @@ watch([() => props.nodes, () => props.links], () => {
     force.simulation.alpha(0.3).restart();
 })
 
-defineExpose({ forceSelect })
+defineExpose({ forceSelect, forceExit })
 
 onBeforeUnmount(() => {
     app.destroy();
