@@ -263,6 +263,9 @@ const brush = new useBrush()
     .nodes(nodes)
     .r(n => size.value(props.size(n)))
     // .on("brushstart.1",()=>console.log("brushstart", brush))
+    .on("enter.clear_level", n=>{
+        n.level = null;
+    })
     .on("exit.clear", n => {
         n.selectGfx.clear();
     })
