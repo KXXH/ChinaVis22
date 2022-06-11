@@ -11,7 +11,7 @@
                     <option value="count">by Frequency</option>
                     <!-- <option value="group">by Cluster</option> -->
                     <option value="leafOrder">by Leaf Order</option>
-                    <option value="leafOrderDist">by Leaf Order over Distance Matrix</option>
+                    <!-- <option value="leafOrderDist">by Leaf Order over Distance Matrix</option> -->
                     <option value="barycenter">by Crossing Reduction</option>
                     <option value="rcm">by Bandwidth Reduction (RCM)</option>
                     <option value="spectral">Spectral</option>
@@ -65,8 +65,8 @@ const props = defineProps(["graph"]);
 const g = computed(() => props);
 onMounted(() => {
     console.log(toRaw(g.value))
-    let newg=getmatrix(g,300)
-    draw(newg)
+    let newg=getmatrix(g)
+    draw(newg,300)
 })
 function getmatrix(g,num=500) {
 
@@ -129,36 +129,15 @@ function getmatrix(g,num=500) {
     g.value.graph.forEachNode(function (node) {
         dfs(node.id, node.id, 3)
     });
-    console.log(dis)
 
-    // let step=Math.ceil(cnt/num);//节点总数，采样后数目
-
-    // let newdis=[]
-    // let newnodes=[]
-    // let newlinks=[]
-    // for (let i = 0; i < cnt; i+=step) {
-    //     let tmp=[]
-    //     newnodes.push({"id":i/step})
-    //     for (let j = 0; j < cnt; j+=step){
-    //         let  newr=0;
-
-    //         for (let ii=i;ii<Math.min(cnt,i+step);ii++){
-    //             for(let jj=j;jj<Math.min(cnt,j+step);jj++)
-    //             {
-    //                 newr+=dis[ii][jj];
-    //             }
-                    
-    //         }
-    //         newlinks.push({"source":i/step,"target":j/step,"value":newr/step})
-
-    //         tmp.push(newr/step)
-    //     }
-            
-    //     newdis.push(tmp)
-    // }
-    // console.log(newdis)
-    return {"nodes":newnodes,"links":newlinks};
-
-
+    let nodes=[]
+    let links=[]
+    for (let i = 0; i < cnt; i++) {
+        nodes.push({"id":i})
+        for (let j = 0; j < cnt; j++){
+            links.push({"source":i,"target":j,"value":dis[i][j]})
+        }
+    }
+    return {"nodes":nodes,"links":links};
 }
 </script>
