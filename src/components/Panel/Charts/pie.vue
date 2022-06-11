@@ -2,7 +2,7 @@
 
     <svg class="pie" viewBox="-100 -100 200 200" style="max-width:300px;margin:0px auto;" >
         <g v-for="g in [0,1]">
-            <path v-for="i in datap[g].l" :d="datap[g].data.path[i]" :fill="c[i]" @mouseover="over($event,datap[g].data.text[i])" @mouseleave="leave($event)"/>
+            <path v-for="i in datap[g].l" :d="datap[g].data.path[i]" :fill="c[i]" @mouseover="over($event,datap[g].data.text[i])" @mouseleave="leave($event)" @click="click(datap[g].data.text[i])"/>
         </g>
         
         <text x="0" y="0" dy="7" font-size="18" text-anchor="middle">{{text}}</text>
@@ -44,16 +44,15 @@ return data.value.map((d,index)=>{ return {"data":getpath(d,(index+1)*40),"l":d3
 
 var text=ref();
 function over($event,t){
-    
     $event.target.setAttribute('fill-opacity','0.5');
     text.value=t
-    if(t.length==1)
-    emit("selectindustry",t)
-    else emit("selecttype",t)
-    
 }
 function leave($event){
     $event.target.setAttribute('fill-opacity','1');
     text.value=null
+}
+function click(t){
+    if(t.length==1) emit("selectindustry",t)
+    else emit("selecttype",t)
 }
 </script>

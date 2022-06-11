@@ -1,6 +1,7 @@
 import * as d3 from "d3";
+import { emit } from "process";
 import * as reorder from "reorder.js";
-export function draw(d,caiyang) {
+export function draw(d, caiyang) {
 
 
 
@@ -19,8 +20,8 @@ export function draw(d,caiyang) {
         .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    // d3.json("../public/miserables.json").then(d => { loadJson(d) });
-    loadJson(d)
+    d3.json("../public/miserables.json").then(d => { loadJson(d) });
+    // loadJson(d)
 
 
     function matrix(json) {
@@ -145,8 +146,10 @@ export function draw(d,caiyang) {
             }
             return res;
         }
-        function caiynag(matrix, orderarray, num) {
-            
+        let nodecnt = matrix.length;
+        let step = Math.ceil(nodecnt / caiyang);//节点总数，采样后数目
+        function caiynag(matrix, orderarray) {
+
             if (typeof orderarray === "function") {
                 console.log("start reorder")
                 orderarray = orderarray.call();
@@ -158,8 +161,8 @@ export function draw(d,caiyang) {
                 for (let j = 0; j < matrix.length; j++)
                     newmatrix[i][j] = matrix[orderarray[i]][orderarray[j]]
             }
-            let nodecnt = matrix.length;
-            let step = Math.ceil(nodecnt / num);//节点总数，采样后数目
+            
+            
             let caryangm = []
             for (let i = 0; i < nodecnt; i += step) {
                 let tmp = []
@@ -180,7 +183,7 @@ export function draw(d,caiyang) {
             console.log(caryangm)
             return caryangm;
         }
-        let cmatrix = caiynag(matrix, orders.leafOrder, caiyang)
+        let cmatrix = caiynag(matrix, orders.name, caiyang)
         var datal = d3.range(cmatrix.length);
         //输入：id，输出：像素位置
         x.domain(datal);
@@ -193,37 +196,7 @@ export function draw(d,caiyang) {
             .style("fill", "#eee")
             .attr("width", width)
             .attr("height", height)
-        svg.append("g")
-            .attr("class", "brush")
-            .call(d3.brush().on("brush", brushed))
-            .on("mousemove", (e,) => {
-                if (d3.pointer(e)[0] > 0 && d3.pointer(e)[1] > 0) {
-                    let xnode = nodes[noworderA[Math.floor(d3.pointer(e)[0] / x.bandwidth())]].name;
-                    let ynode = nodes[noworderA[Math.floor(d3.pointer(e)[1] / x.bandwidth())]].name;
-                }
-            });
 
-        function brushed(e) {
-            const selection = e.selection;
-            let w = x.bandwidth()
-            let xx = [Math.floor(e.selection[0][0] / w), Math.floor(e.selection[1][0] / w)]
-            let yy = [Math.floor(e.selection[0][1] / w), Math.floor(e.selection[1][1] / w)]
-
-            // let o=orders[noworder]
-            // if (typeof o === "function") {
-            //     o = o.call();
-            // }
-            let brushnode = new Set();
-            for (let i = xx[0]; i <= xx[1]; i++) {
-                // brushnode.push(nodes[o[i]])
-                brushnode.add(nodes[noworderA[i]])
-            }
-            for (let i = yy[0]; i <= yy[1]; i++) {
-                // brushnode.push(nodes[o[i]])
-                brushnode.add(nodes[noworderA[i]])
-            }
-            // console.log(brushnode)
-        }
         drawRowAndColumn(cmatrix)
         function drawRowAndColumn(matrix) {
             var row = svg.selectAll(".row")
@@ -273,8 +246,40 @@ export function draw(d,caiyang) {
                     .attr("height", x.bandwidth())
                     .style("fill-opacity", function (d) { return z(d.z); })
                     .style("fill", function (d) { return d3.interpolateBlues(d.z / 40) })
-                    .on("mouseover", mouseover)
-                    .on("mouseout", mouseout);
+                // .on("mouseover", mouseover)
+                // .on("mouseout", mouseout);
+            }
+            svg.append("g")
+                .attr("class", "brush")
+                .call(d3.brush().on("brush", brushed))
+                .on("mousemove", (e,) => {
+                    if (d3.pointer(e)[0] > 0 && d3.pointer(e)[1] > 0) {
+                        let xnode = nodes[noworderA[Math.floor(d3.pointer(e)[0] / x.bandwidth())]].name;
+                        let ynode = nodes[noworderA[Math.floor(d3.pointer(e)[1] / x.bandwidth())]].name;
+                    }
+                });
+
+            function brushed(e) {
+                const selection = e.selection;
+                let w = x.bandwidth()
+                let xx = [Math.floor(e.selection[0][0] / w), Math.floor(e.selection[1][0] / w)]
+                let yy = [Math.floor(e.selection[0][1] / w), Math.floor(e.selection[1][1] / w)]
+
+                // let o=orders[noworder]
+                // if (typeof o === "function") {
+                //     o = o.call();
+                // }
+                let brushnode = new Set();
+                for (let i = xx[0]*step; i <= Math.min(xx[1]*step,nodecnt); i++) {
+                    // brushnode.push(nodes[o[i]])
+                    brushnode.add(nodes[noworderA[i]])
+                }
+                for (let i = yy[0]*step; i <= Math.min(yy[1]*step,nodecnt); i++) {
+                    // brushnode.push(nodes[o[i]])
+                    brushnode.add(nodes[noworderA[i]])
+                }
+                emit("brushMatrix",brushnode)
+                console.log(brushnode)
             }
 
             function mouseover(d, p) {
@@ -324,6 +329,7 @@ export function draw(d,caiyang) {
 
             svg.selectAll(".row").remove();
             svg.selectAll(".column").remove();
+            svg.select(".brush").remove();
 
             drawRowAndColumn(cmatrix)
 
