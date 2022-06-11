@@ -13,7 +13,7 @@ import * as d3 from "d3";
 import {ref,computed} from "vue";
 import _ from "lodash"
 const props = defineProps(["industry","type"]);
-
+const emit=defineEmits(["selectindustry","selecttype"])
 var data = computed(()=>{
 
     return [_(props.industry).toPairs().value(),_(props.type).toPairs().value()]
@@ -34,9 +34,6 @@ function getpath(data,r){
     return {"path":p,"text":data.map(i=>i[0])};
 }
 
-
-
-
 var c=d3.schemeCategory10
 
 let datap=computed(()=>{
@@ -49,8 +46,11 @@ var text=ref();
 function over($event,t){
     
     $event.target.setAttribute('fill-opacity','0.5');
-    
     text.value=t
+    if(t.length==1)
+    emit("selectindustry",t)
+    else emit("selecttype",t)
+    
 }
 function leave($event){
     $event.target.setAttribute('fill-opacity','1');

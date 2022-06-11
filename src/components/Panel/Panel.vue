@@ -16,8 +16,15 @@
         <div class="border m-2">
             <pie-vue :industry="industry" :type="type"></pie-vue>
         </div>
-        
-
+        <n-statistic label="Nodes" class="m-2">
+            <n-number-animation :from="0" :to="node_count" />
+        </n-statistic>
+        <n-statistic label="Links" class="m-2">
+            <n-number-animation :from="0" :to="link_count" />
+        </n-statistic>
+        <div class="border m-2">
+            <egg-vue ></egg-vue>
+        </div>
     </div>
 </template>
 
@@ -27,6 +34,7 @@ import LegendVue from './Legend.vue';
 import { useCounter } from '@vueuse/core'
 import HistogramVue from './Charts/Histogram.vue';
 import pieVue from './Charts/pie.vue';
+import eggVue from "./Charts/egg.vue"
 import { computed, ref, watchEffect } from 'vue';
 import { node_stat } from "../../algorithms/statistics";
 import _ from "lodash"
@@ -50,8 +58,8 @@ function handleBrush(e) {
     // }).map(([k,v])=>[k, graph.getNode(k)]).value())
     emits("select", nodes)
 }
-const industry=computed(()=>{return stats.value.count.byIndustry})
-const type=computed(()=>{return stats.value.count.byType})
+const industry = computed(() => { return stats.value.count.byIndustry })
+const type = computed(() => { return stats.value.count.byType })
 const node_count = computed(() => {
     let c = 0;
     props.graph.forEachNode(() => {
