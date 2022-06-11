@@ -11,7 +11,7 @@
                     <option value="count">by Frequency</option>
                     <!-- <option value="group">by Cluster</option> -->
                     <option value="leafOrder">by Leaf Order</option>
-                    <option value="leafOrderDist">by Leaf Order over Distance Matrix</option>
+                    <!-- <option value="leafOrderDist">by Leaf Order over Distance Matrix</option> -->
                     <option value="barycenter">by Crossing Reduction</option>
                     <option value="rcm">by Bandwidth Reduction (RCM)</option>
                     <option value="spectral">Spectral</option>
@@ -65,8 +65,8 @@ const props = defineProps(["graph"]);
 const g = computed(() => props);
 onMounted(() => {
     console.log(toRaw(g.value))
-    let newg=getmatrix(g,300)
-    draw(newg)
+    let newg=getmatrix(g)
+    draw(newg,300)
 })
 function getmatrix(g,num=500) {
 
@@ -160,5 +160,14 @@ function getmatrix(g,num=500) {
     // return {"nodes":newnodes,"links":newlinks};
 
 
+    let nodes=[]
+    let links=[]
+    for (let i = 0; i < cnt; i++) {
+        nodes.push({"id":i})
+        for (let j = 0; j < cnt; j++){
+            links.push({"source":i,"target":j,"value":dis[i][j]})
+        }
+    }
+    return {"nodes":nodes,"links":links};
 }
 </script>
