@@ -2,8 +2,7 @@
 
     <div style="color: #333;
   margin: 1em 2em 4em 2em;
-  position: relative;
-  ">
+  position: relative; " v-if="node_count < 1000">
 
         <div>
             <p>Order: <select id="order">
@@ -29,8 +28,14 @@
 
         </div>
         <div class="svgdiv">
-
         </div>
+
+    </div>
+    <div v-if="node_count >= 1000" style="max-width:300px;margin:400px auto;">
+        <n-card title="当前节点过多">
+            建议筛选后显示
+        </n-card>
+
     </div>
 
 </template>
@@ -59,24 +64,47 @@ rect.highlight {
 </style>
 <script setup>
 import { min } from 'lodash';
-import { onMounted, computed, toRaw } from 'vue';
+import { NCard } from 'naive-ui';
+import { onMounted, computed, toRaw, watch } from 'vue';
 import { draw } from "./utils/matrix.js";
+import { viewStore } from "../../store/view.js";
+const emit=defineEmits(["brushMatrix"])
 const props = defineProps(["graph"]);
-const g = computed(() => props);
-onMounted(() => {
-    console.log(toRaw(g.value))
-    let newg=getmatrix(g)
-    draw(newg,300)
+const view = viewStore();
+const node_count = computed(() => {
+    return props.graph.getNodeCount();
 })
-function getmatrix(g,num=500) {
+console.log(node_count)
+// if (node_count.value < 1000) {
+//         view.matrixOn=true;
+//     }
+// else view.matrixOn=false;
+onMounted(() => {
+    // console.log(toRaw(g.value))
+    if (node_count.value < 1000) {
+        let newg = getmatrix(props.graph)
+        draw(newg, 200);
+    }
+
+})
+watch(node_count.value, () => {
+    if (node_count.value < 1000) {
+        let newg = getmatrix(props.graph)
+        draw(newg, 200);
+        // view.matrixOn=true;
+    }
+    // else view.matrixOn=false;
+})
+function getmatrix(g) {
 
     let nametoindex = {}
     let cnt = 0;
-    g.value.graph.forEachNode(function (node) {
+    g.forEachNode(function (node) {
         nametoindex[node.id] = cnt;
         cnt++;
     });
     console.log(cnt)
+    if (cnt > 1000) return -1;
 
     let dis = []
     for (let i = 0; i < cnt; i++) {
@@ -85,7 +113,7 @@ function getmatrix(g,num=500) {
             tmp.push(0)
         dis.push(tmp)
     }
-    // console.log(g.value.graph)
+
 
     let RELATION_STRENGTH = {
         "r_cert": 3,
@@ -102,7 +130,7 @@ function getmatrix(g,num=500) {
     }
     const dfs = (source, now, depth) => {
         if (depth <= 0) return;
-        let edges = g.value.graph.getLinks(now);
+        let edges = g.getLinks(now);
         for (let e of edges) {
             let nextn = e.data.source == now ? e.data.target : e.data.source;
             // console.log(nametoindex[nextn],nametoindex[source])
@@ -126,10 +154,10 @@ function getmatrix(g,num=500) {
     //         let now=
     //     }
     // }    
-    g.value.graph.forEachNode(function (node) {
+    g.forEachNode(function (node) {
         dfs(node.id, node.id, 3)
     });
-    console.log(dis)
+    // console.log(dis)
 
     // let step=Math.ceil(cnt/num);//节点总数，采样后数目
 
@@ -147,27 +175,27 @@ function getmatrix(g,num=500) {
     //             {
     //                 newr+=dis[ii][jj];
     //             }
-                    
+
     //         }
     //         newlinks.push({"source":i/step,"target":j/step,"value":newr/step})
 
     //         tmp.push(newr/step)
     //     }
-            
+
     //     newdis.push(tmp)
     // }
     // console.log(newdis)
     // return {"nodes":newnodes,"links":newlinks};
 
 
-    let nodes=[]
-    let links=[]
+    let nodes = []
+    let links = []
     for (let i = 0; i < cnt; i++) {
-        nodes.push({"id":i})
-        for (let j = 0; j < cnt; j++){
-            links.push({"source":i,"target":j,"value":dis[i][j]})
+        nodes.push({ "id": i })
+        for (let j = 0; j < cnt; j++) {
+            links.push({ "source": i, "target": j, "value": dis[i][j] })
         }
     }
-    return {"nodes":nodes,"links":links};
+    return { "nodes": nodes, "links": links };
 }
 </script>

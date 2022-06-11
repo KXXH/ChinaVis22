@@ -87,12 +87,13 @@ const link_count = computed(() => {
 
 const jump = computed(()=>{
     const res = [0,0,0];
+    res[-1]=0;
     view.selectedNodes.forEach(v=>{
         let level = (v.level??3)>2?-1:v.level;
         res[level]++;
     })
     console.log("jump", res)
-    return res;
+    return res.slice(0,3);
 })
 
 </script>
