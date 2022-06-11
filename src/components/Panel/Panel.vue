@@ -13,23 +13,31 @@
             <histogram-vue :x="Array.from(stats.count.byDegree.values()).map(v => v.x0) ?? []" :y="histData"
                 @brush="handleBrush" />
         </div>
-        <div class="border m-2">
-            <pie-vue :industry="industry" :type="type"></pie-vue>
+        <!-- <div class="grid grid-cols-[1fr,1fr]"> -->
+        <div class="border m-2 p-2 h-150px">
+            <pie-vue class="h-full" :industry="industry" :type="type" />
         </div>
-        <n-statistic label="Nodes" class="m-2">
-            <n-number-animation :from="0" :to="node_count" />
-        </n-statistic>
-        <n-statistic label="Links" class="m-2">
-            <n-number-animation :from="0" :to="link_count" />
-        </n-statistic>
-        <div class="border m-2">
-            <egg-vue ></egg-vue>
+        <div class="border m-2 h-150px p-2 text-center">
+            <egg-vue 
+                v-if="view.selectedNodes.size>0" 
+                :a="jump"
+                class="h-full" 
+            />
+            <n-empty
+                v-else
+                style="margin: auto 0px"
+                description="Use 3-jump search to get jump imfomation."
+            ></n-empty>
+        <!-- </div> -->
         </div>
+
+
+
     </div>
 </template>
 
 <script setup>
-import { NNumberAnimation, NStatistic } from "naive-ui"
+import { NNumberAnimation, NStatistic, NEmpty } from "naive-ui"
 import LegendVue from './Legend.vue';
 import { useCounter } from '@vueuse/core'
 import HistogramVue from './Charts/Histogram.vue';
@@ -37,8 +45,10 @@ import pieVue from './Charts/pie.vue';
 import eggVue from "./Charts/egg.vue"
 import { computed, ref, watchEffect } from 'vue';
 import { node_stat } from "../../algorithms/statistics";
+import { viewStore } from "../../store/view";
 import _ from "lodash"
 
+const view = viewStore();
 const props = defineProps(["graph"]);
 const emits = defineEmits(["select"]);
 const g = computed(() => props.graph);
@@ -74,4 +84,15 @@ const link_count = computed(() => {
     });
     return c
 })
+
+const jump = computed(()=>{
+    const res = [0,0,0];
+    view.selectedNodes.forEach(v=>{
+        let level = (v.level??3)>2?-1:v.level;
+        res[level]++;
+    })
+    console.log("jump", res)
+    return res;
+})
+
 </script>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed, shallowRef, shallowReadonly, shallowReactive } from "vue";
+import { ref, watch, computed, shallowRef, shallowReadonly, shallowReactive, toRaw } from "vue";
 import { useMagicKeys, useMouse } from '@vueuse/core'
 import { NConfigProvider, NScrollbar } from "naive-ui";
 import { viewStore } from "./store/view";
@@ -50,7 +50,7 @@ const rdata = shallowReactive({
 const view_store = viewStore();
 const nodelinkGraph = ref(null);
 const subgraphs = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+  1, 2, 3,
 ]
 
 let g = shallowRef(createGraph(data.nodes, data.links, n => n.id, l => l.source, l => l.target));
@@ -69,6 +69,14 @@ function handlePanelSelect(v) {
 
 function handleSearch(v){
   view_store.selectedNodes = nodelinkGraph.value.forceSelect(v);
+}
+
+function handleAddCollection(){
+  if(view_store.selectedNodes.size==0) return;
+  view_store.collections.push({
+    nodes:view_store.selectedNodes,
+    og: _.clone(g)
+  })
 }
 
 const { Ctrl_E, Ctrl_R } = useMagicKeys();
@@ -149,15 +157,20 @@ watch(g, ()=>{
         left: `${view_store?.hoverNode?.x+20}px`,
       }" />
       <header>
-        <MenuBar w="1/1" class="border-b border-grey-400" v-model:nodeLinkOn="view_store.nodeLinkOn"
-          v-model:matrixOn="view_store.matrixOn" v-model:brushOn="view_store.brushOn" @neighbors="handleNeighbor"
+        <MenuBar w="1/1" class="border-b border-grey-400"       
+          v-model:nodeLinkOn="view_store.nodeLinkOn"
+          v-model:matrixOn="view_store.matrixOn" 
+          v-model:brushOn="view_store.brushOn" 
+          @neighbors="handleNeighbor"
           @simplify="handleSimplify"
           @search="handleSearch"
-          :graph="g" />
+          @add-subgraph="handleAddCollection"
+          :graph="g" 
+        />
       </header>
       <div class="flex flex-1 gap-2" px="4" py="2">
         <Transition name="flex-left">
-          <div v-if="view_store.nodeLinkOn" class="flex-3">
+          <div v-if="view_store.nodeLinkOn" class="flex-4">
             <ElementContainerVue title="node-link" h="1/1">
               <NodeLink h="1/1" :color-map="colorFn" :nodes="rdata.nodes" :links="rdata.links"
                 :brush="view_store.brushOn" :size="i => i.betweenness" :size-range="[5, 10]"
@@ -170,13 +183,13 @@ watch(g, ()=>{
 
 
         <Transition name="flex-left">
-          <div v-if="view_store.matrixOn" class="flex-3">
+          <div v-if="view_store.matrixOn" class="flex-4">
             <ElementContainerVue title="node-link" h="1/1">
               <Matrix h="1/1" :graph="g"/>
             </ElementContainerVue>
           </div>
         </Transition>
-        <div class="flex-1">
+        <div class="w-300px">
           <ElementContainerVue title="node-link" h="1/1">
             <Panel h="1/1" :graph="sg" @select="handlePanelSelect" />
           </ElementContainerVue>
@@ -187,14 +200,17 @@ watch(g, ()=>{
           <div
             class="flex flex-row flex-nowrap overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400  scrollbar-thumb-rounded-full gap-2"
             h="1/1" w="1/1">
-            <div class="rounded border" v-for="i in subgraphs" h="1/1">
-              <Subgraph class="min-w-200px" h="1/1" />
+            <div class="rounded border" v-for="sg in view_store.collections" h="1/1">
+              <Subgraph 
+                class="min-w-200px" 
+                h="1/1" 
+                :og="sg.og"
+                :nodes="sg.nodes"
+              />
             </div>
           </div>
         </ElementContainerVue>
       </div>
-
-
     </div>
   </n-config-provider>
 

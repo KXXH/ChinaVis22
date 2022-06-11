@@ -104,7 +104,8 @@ const emits = defineEmits([
     "neighbors",
     "simplify",
     "community",
-    "search"
+    "search",
+    "addSubgraph"
 ])
 
 function onSearchDone(v){
@@ -117,17 +118,8 @@ const isBrushOn = useVModel(props, "brushOn", emits);
 
 const subgraphOpt = [
     {
-        label: "divide",
-        key: "devide",
-        children: [
-            {
-                label: "from selected nodes"
-            },
-            {
-                label: "from community detection",
-                key: "community"
-            }
-        ]
+        label: "add to collection",
+        key: "add",
     },
     {
         label: "merge",
@@ -156,6 +148,8 @@ function handleView(key) {
 function handleSubgraph(key) {
     switch (key) {
         case "community": emits("community"); break;
+        case "add": emits("addSubgraph"); break;
+        
     }
 }
 const selectOpt = [

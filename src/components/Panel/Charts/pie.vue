@@ -1,11 +1,11 @@
 <template>
 
-    <svg class="pie" viewBox="-100 -100 200 200" style="max-width:300px;margin:4px auto;" >
+    <svg class="pie" viewBox="-100 -100 200 200" style="max-width:300px;margin:0px auto;" >
         <g v-for="g in [0,1]">
             <path v-for="i in datap[g].l" :d="datap[g].data.path[i]" :fill="c[i]" @mouseover="over($event,datap[g].data.text[i])" @mouseleave="leave($event)"/>
         </g>
         
-        <text x="0" y="0" font-size="10" text-anchor="middle">{{text}}</text>
+        <text x="0" y="0" dy="7" font-size="18" text-anchor="middle">{{text}}</text>
     </svg>
 </template>
 <script setup>

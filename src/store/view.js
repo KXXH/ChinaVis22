@@ -8,6 +8,7 @@ export const viewStore = defineStore("view", {
         brushOn:false,
         selectedNodes: new Map(),
         communityLevel: 0,
-        hoverNode:null
+        hoverNode:null,
+        collections:[]
     })
 })

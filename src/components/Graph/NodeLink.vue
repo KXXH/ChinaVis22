@@ -79,6 +79,10 @@ const props = defineProps({
     interactive:{
         type:Boolean,
         default:true
+    },
+    lite:{
+        type:Boolean,
+        default:false
     }
 });
 const emits = defineEmits(["update:selectedNodes", "layoutDone"]);
@@ -94,7 +98,7 @@ const app = new PIXI.Application({
     width, height, backgroundColor: 0xffffff, resolution: window.devicePixelRatio || 1,
     antialias: true,
     autoDensity: true,
-    forceCanvas: false,
+    forceCanvas: props.lite,
     resolution: window.devicePixelRatio
 });
 
@@ -474,6 +478,9 @@ function handleForceStop() {
 
 // change layer opacity when zoom
 const onZoom = () => {
+    if(props.lite){
+        return;
+    }
     const k = container.transform.worldTransform.a;
     hullLayer.alpha = hullOpacity(k);
     nodeLinkLayer.alpha = nodeLinkOpacity(k);

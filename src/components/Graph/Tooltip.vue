@@ -1,10 +1,12 @@
 <template>
-    <n-card v-if="view.hoverNode!=null">
-        {{_.truncate(view.hoverNode.node.id, {
+    <n-card 
+        v-if="view.hoverNode!=null" 
+        :title="_.truncate(view.hoverNode.node.id, {
             length: 20
-        })}}
+        })"
+    >
         <node-link-vue 
-            class="h-300px w-300px"
+            class="h-300px w-300px shadow-inner"
             v-if="view.hoverNode?.node?.subgraph"
             :nodes="nodes" :links="links"
             :brush="false"  :color-map="color"
