@@ -5,6 +5,9 @@
             <histogram-vue :x="Array.from(stats.count.byDegree.values()).map(v => v.x0) ?? []" :y="histData"
                 @brush="handleBrush" />
         </div>
+        <div class="border m-2">
+            <pie-vue :industry="industry" :type="type"></pie-vue>
+        </div>
         <div class="flex w-full mx-1">
             <n-statistic label="Nodes" class="m-2 flex-1">
                 <n-number-animation :from="0" :to="node_count" />
@@ -22,6 +25,7 @@ import { NNumberAnimation, NStatistic } from "naive-ui"
 import LegendVue from './Legend.vue';
 import { useCounter } from '@vueuse/core'
 import HistogramVue from './Charts/Histogram.vue';
+import pieVue from './Charts/pie.vue';
 import { computed, ref, watchEffect } from 'vue';
 import { node_stat } from "../../algorithms/statistics";
 import _ from "lodash"
@@ -45,6 +49,8 @@ function handleBrush(e) {
     // }).map(([k,v])=>[k, graph.getNode(k)]).value())
     emits("select", nodes)
 }
+const industry=computed(()=>{return stats.value.count.byIndustry})
+const type=computed(()=>{return stats.value.count.byType})
 const node_count = computed(() => {
     let c = 0;
     props.graph.forEachNode(() => {
