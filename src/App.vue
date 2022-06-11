@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, computed, reactive, shallowReactive } from "vue";
-import { useMagicKeys } from '@vueuse/core'
+import { useMagicKeys, useMouse } from '@vueuse/core'
 import { NConfigProvider, NScrollbar } from "naive-ui";
 import { viewStore } from "./store/view";
 import getSubgraph from "ngraph.subgraph"
@@ -24,6 +24,7 @@ import { extend_graph } from "./algorithms/neighbors";
 import { node_stat } from "./algorithms/statistics";
 import { simplify } from './algorithms/simplify';
 import { louvain } from "./algorithms/community";
+import TooltipVue from "./components/Graph/Tooltip.vue";
 
 import coarsen from "ngraph.coarsen";
 
@@ -32,8 +33,13 @@ import communityColor from "./utils/communityColor";
 
 // const colorFn = ref(color);
 
+const { x: mouseX, y: mouseY } = useMouse();
+
 document.onkeydown = (e) => {
-  e.preventDefault();
+  if (e.ctrlKey || e.altKey) {
+    e.preventDefault();
+
+  }
 }
 
 const rdata = shallowReactive({
@@ -54,12 +60,15 @@ function updateG(nodes, links) {
 }
 
 function handleNeighbor() {
-  view_store.selectedNodes=nodelinkGraph.value.forceSelect(neighbors(g, view_store.selectedNodes))
+  view_store.selectedNodes = nodelinkGraph.value.forceSelect(neighbors(g, view_store.selectedNodes))
 }
 
-function handlePanelSelect(v){
-  view_store.selectedNodes=nodelinkGraph.value.forceSelect(neighbors(g, v))
+function handlePanelSelect(v) {
+  view_store.selectedNodes = nodelinkGraph.value.forceSelect(v)
+}
 
+function handleSearch(v){
+  view_store.selectedNodes = nodelinkGraph.value.forceSelect(v);
 }
 
 const { Ctrl_E, Ctrl_R } = useMagicKeys();
@@ -70,38 +79,43 @@ watch(Ctrl_E, v => {
 })
 watch(Ctrl_R, v => {
   if (v) {
-    view_store.selectedNodes=nodelinkGraph.value.forceSelect(extend_graph(g, view_store.selectedNodes))
+    view_store.selectedNodes = nodelinkGraph.value.forceSelect(extend_graph(g, view_store.selectedNodes))
   }
 })
 
 const sg = computed(() => {
   if (!view_store.selectedNodes.size) {
-    return g;
+    return _.clone(g);
   }
   return getSubgraph(new Set(view_store.selectedNodes.keys()), g);
 })
 
+const cc = new communityColor(_.clone(g));
 let simplifyFlag = false;
-function handleSimplify(){
+let simplifyLevel = 0;
+function handleSimplify() {
   // if(simplifyFlag){
   //   simplifyFlag = false;
   //   rdata.nodes = data.nodes;
   //   rdata.links = data.links;
   //   return;
   // }
-  simplifyFlag = true;
-  const g = createGraph(rdata.nodes, rdata.links, n => n.id, l => l.source, l => l.target);
-  let sg = simplify(g);
-  sg = simplify(sg);
+  // simplifyFlag = true;
+  // const g = createGraph(rdata.nodes, rdata.links, n => n.id, l => l.source, l => l.target);
+  // let sg = simplify(g);
+  let sg = cc.simplify(++simplifyLevel);
+
+  // sg = simplify(sg);
   const ns = [];
   const ls = [];
-  sg.forEachNode(n=>{
+  sg.forEachNode(n => {
+    n.subgraph = getSubgraph(n.data.leaf, g);
     ns.push(n)
   });
-  sg.forEachLink(l=>{
+  sg.forEachLink(l => {
     ls.push({
-      source:l.fromId,
-      target:l.toId
+      source: l.fromId,
+      target: l.toId
     });
   });
   rdata.nodes = ns;
@@ -109,12 +123,11 @@ function handleSimplify(){
 }
 
 const cg = new ColorGenerator();
-const cc = new communityColor(g);
+
 let clusters = [];
-let gg = [g];
-function getClass(i, id){
-  if(i==clusters.length-1) return clusters[i].getClass(id)
-  return getClass(i+1, clusters[i].getClass(id))
+function getClass(i, id) {
+  if (i == clusters.length - 1) return clusters[i].getClass(id)
+  return getClass(i + 1, clusters[i].getClass(id))
 }
 // function handleCommunity(){
 //   let c = louvain(gg[gg.length-1]);
@@ -126,7 +139,7 @@ function getClass(i, id){
 //   }
 
 // }
-const colorFn = computed(()=>{
+const colorFn = computed(() => {
   return cc.colorMap(view_store.communityLevel);
 })
 </script>
@@ -134,22 +147,26 @@ const colorFn = computed(()=>{
 <template>
   <n-config-provider>
     <div id="container">
+      <tooltip-vue class="absolute w-300px h-300px" :style="{
+        top: `${view_store?.hoverNode?.y-10}px`,
+        left: `${view_store?.hoverNode?.x+20}px`,
+      }" />
       <header>
         <MenuBar w="1/1" class="border-b border-grey-400" v-model:nodeLinkOn="view_store.nodeLinkOn"
-          v-model:matrixOn="view_store.matrixOn" v-model:brushOn="view_store.brushOn" @neighbors="handleNeighbor" 
+          v-model:matrixOn="view_store.matrixOn" v-model:brushOn="view_store.brushOn" @neighbors="handleNeighbor"
           @simplify="handleSimplify"
-          @community="handleCommunity"
-        />
+          @search="handleSearch"
+          :graph="g" />
       </header>
       <div class="flex flex-1 gap-2" px="4" py="2">
         <Transition name="flex-left">
           <div v-if="view_store.nodeLinkOn" class="flex-3">
             <ElementContainerVue title="node-link" h="1/1">
-              <NodeLink h="1/1" :color-map="colorFn" :nodes="rdata.nodes" :links="rdata.links" :brush="view_store.brushOn"
-                :size="i => i.betweenness" :size-range="[5, 10]" v-model:selected-nodes="view_store.selectedNodes"
-                @layout-done="updateG($event.nodes, $event.links)" 
-
+              <NodeLink h="1/1" :color-map="colorFn" :nodes="rdata.nodes" :links="rdata.links"
+                :brush="view_store.brushOn" :size="i => i.betweenness" :size-range="[5, 10]"
+                v-model:selected-nodes="view_store.selectedNodes" @layout-done="updateG($event.nodes, $event.links)"
                 ref="nodelinkGraph" />
+
             </ElementContainerVue>
           </div>
         </Transition>
@@ -164,7 +181,7 @@ const colorFn = computed(()=>{
         </Transition>
         <div class="flex-1">
           <ElementContainerVue title="node-link" h="1/1">
-            <Panel h="1/1" :graph="sg" @select="handlePanelSelect"/>
+            <Panel h="1/1" :graph="sg" @select="handlePanelSelect" />
           </ElementContainerVue>
         </div>
       </div>

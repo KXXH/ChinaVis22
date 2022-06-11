@@ -23,17 +23,27 @@
         </menu-item-vue>
 
 
-        <n-input placeholder="Search" class="!w-200px flex-2" size="small" type="text" my="2px" :theme-overrides='{
+        <n-auto-complete 
+        v-model:value="searchVal" 
+        placeholder="Search" 
+        class="!w-200px flex-2" s
+        ize="small" 
+        type="text" 
+        my="2px" 
+        :theme-overrides='{
             "borderFocus": "0px",
             "boxShadowFocus": "",
             "color": "#dbeafe"
-        }'>
+        }'
+        :options="searchOpts"
+        @select="onSearchDone"
+        >
             <template #suffix>
                 <n-icon>
                     <IconSearch />
                 </n-icon>
             </template>
-        </n-input>
+        </n-auto-complete>
         <div class="flex-1"></div>
         <community-setting-vue 
             class="max-w-400px" 
@@ -45,7 +55,7 @@
 <script setup lang="jsx">
 import CommunitySettingVue from "./CommunitySetting.vue";
 
-import { NInput, NIcon, NInputNumber, NSwitch, NSpace, NText } from "naive-ui";
+import { NInput, NIcon, NAutoComplete, NSwitch, NSpace, NText } from "naive-ui";
 import MenuItemVue from "./MenuItem.vue";
 import IconSearch from "~icons/fa/search";
 import IconOK from "~icons/el/ok-sign";
@@ -54,6 +64,19 @@ import { useVModel } from '@vueuse/core'
 import { viewStore } from '../../store/view';
 
 const view = viewStore();
+const searchVal = ref("");
+const searchOpts = computed(()=>{
+    const res=[];
+    props.graph.forEachNode((n)=>{
+        if(n.id.startsWith(searchVal.value)){
+            res.push({
+                label: n.id,
+                value: n
+            })
+        }
+    })
+    return res
+})
 
 const show = ref(false);
 
@@ -69,6 +92,9 @@ const props = defineProps({
     brushOn: {
         type: Boolean,
         default: false
+    },
+    graph:{
+        required: false
     }
 })
 const emits = defineEmits([
@@ -77,8 +103,13 @@ const emits = defineEmits([
     "update:brushOn",
     "neighbors",
     "simplify",
-    "community"
+    "community",
+    "search"
 ])
+
+function onSearchDone(v){
+    emits("search", new Map([[v.id, v]]));
+}
 
 const isNLOn = useVModel(props, "nodeLinkOn", emits);
 const isMtxOn = useVModel(props, "matrixOn", emits);

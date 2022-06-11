@@ -15,7 +15,7 @@ import { NModal, NCard, NInputNumber } from 'naive-ui';
 import { viewStore } from '../../store/view';
 import { useVModel } from '@vueuse/core'
 const view = viewStore();
-const props = defineProps(["show", "update:level"])
-const emits = defineEmits(["update:show"]);
+const props = defineProps(["show"])
+const emits = defineEmits(["update:show", "update:level"]);
 const show = useVModel(props, "show", emits);
 </script>

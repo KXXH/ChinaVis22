@@ -5,12 +5,15 @@
             <histogram-vue :x="Array.from(stats.count.byDegree.values()).map(v => v.x0) ?? []" :y="histData"
                 @brush="handleBrush" />
         </div>
-        <n-statistic label="Nodes" class="m-2">
-            <n-number-animation :from="0" :to="node_count" />
-        </n-statistic>
-        <n-statistic label="Links" class="m-2">
-            <n-number-animation :from="0" :to="link_count" />
-        </n-statistic>
+        <div class="flex w-full mx-1">
+            <n-statistic label="Nodes" class="m-2 flex-1">
+                <n-number-animation :from="0" :to="node_count" />
+            </n-statistic>
+            <n-statistic label="Links" class="m-2 flex-1">
+                <n-number-animation :from="0" :to="link_count" />
+            </n-statistic>
+        </div>
+
     </div>
 </template>
 

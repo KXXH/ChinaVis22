@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onMounted, watch, computed, onBeforeUnmount } from "vue";
 import * as PIXI from 'pixi.js';
 import { SVGPathNode, SVGScene } from "@pixi-essentials/svg";
 import { Viewport } from 'pixi-viewport'
@@ -22,7 +22,10 @@ import useForce from "./utils/force.js";
 
 import { useTransition, transitionContainer } from "./utils/transition";
 
+import { viewStore } from "../../store/view.js";
 // import useNGForce from "./utils/ngraph-force.js";
+
+const view = viewStore();
 
 // basic settings
 
@@ -205,7 +208,7 @@ function drawBrushNode(node) {
     node.selectGfx.position = new PIXI.Point(node.x, node.y)
 }
 
-function drawForceNode(node) {
+function drawForceNode(node, color) {
     const gfx = node.gfx;
     gfx.clear();
     if (node.industry != "[]") {
@@ -214,7 +217,7 @@ function drawForceNode(node) {
     else {
         gfx.lineStyle(NodeLineWidth, 0xFFFFFF);
     }
-    gfx.beginFill(props.colorMap(node));
+    gfx.beginFill(color??props.colorMap(node));
     gfx.drawCircle(0, 0, size.value(props.size(node)));
 }
 
@@ -222,6 +225,7 @@ const brush = new useBrush()
     .app(app)
     .container(container)
     .nodes(nodes)
+    .r(n => size.value(props.size(n)))
     // .on("brushstart.1",()=>console.log("brushstart", brush))
     .on("exit.clear", n => {
         n.selectGfx.clear();
@@ -248,6 +252,28 @@ watch(() => props.brush, () => {
         container.plugins.resume('drag')
         brush.stop();
     }
+})
+
+let lastPoint = null;
+container.on("mousemove", (e)=>{
+    if(lastPoint!=null){
+        drawForceNode(lastPoint);
+        lastPoint = null;
+    }
+    let { x, y } = e.data.global;
+    let {x:tx, y:ty} = container.transform.worldTransform.applyInverse(new PIXI.Point(x,y))
+    const node = brush.find(tx, ty, props.sizeRange[1]);
+    if(node==null) {
+        view.hoverNode = null;
+        return;
+    }
+    drawForceNode(node, 0x00ff00)
+    lastPoint = node;
+    view.hoverNode = {
+        node:node,
+        x: container.transform.worldTransform.apply(new PIXI.Point(node.x, node.y)).x,
+        y: container.transform.worldTransform.apply(new PIXI.Point(node.x, node.y)).y
+    };
 })
 
 watch(alt, v => brush.alt(v));
@@ -286,7 +312,7 @@ const force = new useForce()
 
 
 watch(() => props.colorMap, () => {
-    nodes.forEach(drawForceNode)
+    nodes.forEach(n=>drawForceNode(n))
 })
 
 function hullCenter(points) {
@@ -463,4 +489,7 @@ watch([() => props.nodes, () => props.links], () => {
 
 defineExpose({ forceSelect })
 
+onBeforeUnmount(()=>{
+    app.destroy();
+})
 </script>

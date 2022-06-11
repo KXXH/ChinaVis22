@@ -7,6 +7,7 @@ export const viewStore = defineStore("view", {
         matrixOn:true,
         brushOn:false,
         selectedNodes: new Map(),
-        communityLevel: 0
+        communityLevel: 0,
+        hoverNode:null
     })
 })

@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import * as d3 from "d3";
+import _ from 'lodash';
 
 
 export default class useBrush{
@@ -18,6 +19,7 @@ export default class useBrush{
     currentSelected = new Map();
     _x = i=>i.x;
     _y = i=>i.y;
+    _r = i=>i.r;
     _nodes = [];
     _quadtree = null;
     _stop = false;
@@ -174,6 +176,19 @@ export default class useBrush{
             }
         }
     }
+    find(x, y, r){
+        let res = [];
+        this.searchCb(x-r, y-r, x+r, y+r, (d)=>{
+            res.push(d)
+        })
+        // let res = this._nodes.filter(n=>n.x>=(x-r)&&n.x<=(x+r)&&n.y>=y-r&&n.y<=y+r);
+        return _(res).sortBy(d=>{
+            return Math.sqrt((d.x - x) ** 2, (d.y - y) ** 2)
+        }).find(d=>{
+            return this._r(d) >= Math.sqrt((d.x - x) ** 2, (d.y - y) ** 2);
+        });
+
+    }
     nodes(data) {
         if (data == null) return this._nodes;
         this._nodes = data;
@@ -194,6 +209,11 @@ export default class useBrush{
     y(fy) {
         if (fy == null) return this._y;
         this._y = fy;
+        return this;
+    }
+    r(fr){
+        if (fr == null) return this._r;
+        this._r = fr;
         return this;
     }
     stop(){
@@ -218,7 +238,15 @@ export default class useBrush{
             this.dispatch.call("exit", null, node, this.selectionLayer);
         }
         this.currentSelected.clear();
-        this.selectedNodes = new Map(nodes);
+        let nodes_t = new Map(Array.from(nodes.entries()).map(([id,node])=>{
+            if (node.selectGfx == null) {
+                // node.selectGfx = new PIXI.Graphics();
+                // this.selectionLayer.addChildAt(node.selectGfx, 0);
+                return [id, this._nodes.find(n => n.id == node.id)];
+            }
+            else return [id, node];
+        }))
+        this.selectedNodes = new Map(nodes_t);
         this.selectedNodes.forEach(node=>{
             this.dispatch.call("forceEnter", null, node, this.selectionLayer);
         })

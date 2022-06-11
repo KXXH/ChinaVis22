@@ -4,7 +4,7 @@
         @mouseup="handleBrushEnd">
         <g class="text-[10px]" ref="yaxis" text-anchor="end" :transform="`translate(${yaxis_width}, 0)`">
             <text class="fill-gray-600" v-for="v in scaleHeight.ticks(3)" x="0" :y="y(scaleHeight(v))" dy="2px">
-                {{ format("~s")(v) }}
+                {{ format("~s")(v-1) }}
             </text>
         </g>
         <g>
@@ -85,7 +85,7 @@ function handleBrushClose(e) {
 const scaleHeight = computed(() => {
     const max = Math.max(...props.y)
     const min = Math.min(...props.y)
-    return scaleLog().domain([1, max + 1]).range([0, histogramBox.height]);
+    return scaleLog().domain([1, max + 1]).range([0, histogramBox.height]).clamp(true);
 })
 
 const y = computed(() => {
@@ -103,6 +103,7 @@ const heights = computed(() => {
     if (!isMounted.value) {
         return props.y.map(() => 0)
     }
+    console.log("hhh", scaleHeight.value(2),  scaleHeight.value(11))
     return props.y.map((n) => scaleHeight.value(n + 1));
 })
 const selected = computed(() => {
