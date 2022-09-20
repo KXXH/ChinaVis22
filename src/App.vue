@@ -98,15 +98,19 @@ function handleClear(){
   rdata.nodes = [];
   rdata.links = [];
 }
-function handleAddFromCollection(sg){
-  if(rdata.node.length>0){
-    handleClear();
-  }
+function handleAddFromCollection(nodes, og){
+  // if(rdata.nodes.length>0){
+  //   handleClear();
+  // }
+  // const ns = _.clone(rdata.nodes);
+  let ns_t = _.union(rdata.nodes.map(n=>n.id), Array.from(nodes.keys()));
+  // ns = ns.map(n=>n.data?n.data:n);
+  const sg = getSubgraph(new Set(ns_t), og);
   const ns = [];
   const ls = [];
+  // const sg = getSubgraph(new Set(Array.from(nodes.keys())), og)
   sg.forEachNode(n => {
-    n.subgraph = getSubgraph(n.data.leaf, g.value);
-    ns.push(n)
+    ns.push(n.data);
   });
   sg.forEachLink(l => {
     ls.push({
@@ -254,7 +258,7 @@ watch(g, ()=>{
                 :og="sg.og"
                 :nodes="sg.nodes"
                 @remove="handleRemoveCollection(i)"
-                @add="handleAddCollection(sg)"
+                @add="handleAddFromCollection(sg.nodes, sg.og)"
               />
             </div>
           </div>
