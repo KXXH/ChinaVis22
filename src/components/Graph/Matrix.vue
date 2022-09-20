@@ -6,7 +6,7 @@
 
         <div>
             <p>Order: <select id="order">
-                    <option value="name">by Name</option>
+                    <option value="id">by Id</option>
                     <option value="count">by Frequency</option>
                     <!-- <option value="group">by Cluster</option> -->
                     <option value="leafOrder">by Leaf Order</option>
@@ -72,8 +72,12 @@ const emit=defineEmits(["brushMatrix"])
 const props = defineProps(["graph"]);
 const view = viewStore();
 const node_count = computed(() => {
-    return props.graph.getNodeCount();
+    return 100
+    // return props.graph.getNodeCount();
 })
+function handleSelect(v){
+    emit("brushMatrix",v)
+}
 console.log(node_count)
 // if (node_count.value < 1000) {
 //         view.matrixOn=true;
@@ -83,14 +87,14 @@ onMounted(() => {
     // console.log(toRaw(g.value))
     if (node_count.value < 1000) {
         let newg = getmatrix(props.graph)
-        draw(newg, 200);
+        draw(newg, 200,handleSelect);
     }
 
 })
 watch(node_count.value, () => {
     if (node_count.value < 1000) {
         let newg = getmatrix(props.graph)
-        draw(newg, 200);
+        draw(newg, 200,handleSelect);
         // view.matrixOn=true;
     }
     // else view.matrixOn=false;
@@ -98,13 +102,14 @@ watch(node_count.value, () => {
 function getmatrix(g) {
 
     let nametoindex = {}
+    let indextoname=[]
     let cnt = 0;
     g.forEachNode(function (node) {
         nametoindex[node.id] = cnt;
+        indextoname.push(node)
         cnt++;
     });
     console.log(cnt)
-    if (cnt > 1000) return -1;
 
     let dis = []
     for (let i = 0; i < cnt; i++) {
@@ -147,6 +152,7 @@ function getmatrix(g) {
             // console.log(e.data)
         }
     }
+    
     // function bfs(start){
     //     let q=new Array()
     //     q.push(start)
@@ -191,11 +197,12 @@ function getmatrix(g) {
     let nodes = []
     let links = []
     for (let i = 0; i < cnt; i++) {
-        nodes.push({ "id": i })
+        nodes.push({ "id":indextoname[i].id,"graphnode": indextoname[i] })
         for (let j = 0; j < cnt; j++) {
             links.push({ "source": i, "target": j, "value": dis[i][j] })
         }
     }
+    console.log(nodes)
     return { "nodes": nodes, "links": links };
 }
 </script>

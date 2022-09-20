@@ -236,7 +236,7 @@ watch(g, ()=>{
         <Transition name="flex-left">
           <div v-if="view_store.matrixOn" class="flex-4">
             <ElementContainerVue title="node-link" h="1/1">
-              <Matrix h="1/1" :graph="g"/>
+              <Matrix h="1/1" :graph="g" @brush-matrix="handlePanelSelect" />
             </ElementContainerVue>
           </div>
         </Transition>

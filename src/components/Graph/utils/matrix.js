@@ -1,8 +1,8 @@
 import * as d3 from "d3";
-// import { emit } from "process";
+import { viewStore } from "../../../store/view.js";
 import * as reorder from "reorder.js";
-export function draw(d, caiyang) {
-
+export function draw(d, caiyang, fn) {
+    const view = viewStore();
 
 
     var margin = { top: 40, right: 0, bottom: 0, left: 0 },
@@ -20,8 +20,8 @@ export function draw(d, caiyang) {
         .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    d3.json("../public/miserables.json").then(d => { loadJson(d) });
-    // loadJson(d)
+    // d3.json("../public/miserables.json").then(d => { loadJson(d) });
+    loadJson(d)
 
 
     function matrix(json) {
@@ -117,7 +117,7 @@ export function draw(d, caiyang) {
         // Precompute the orders.
         //数组，输入：位置，输出：节点在文件中的原排序
         var orders = {
-            name: d3.range(n).sort(function (a, b) { return d3.ascending(nodes[a].name, nodes[b].name); }),
+            id: d3.range(n).sort(function (a, b) { return d3.ascending(nodes[a].id, nodes[b].id); }),
             count: d3.range(n).sort(function (a, b) { return nodes[b].count - nodes[a].count; }),
             // group: d3.range(n).sort(function (a, b) {
             //     var x = nodes[b].group - nodes[a].group;
@@ -133,8 +133,8 @@ export function draw(d, caiyang) {
         // The default sort order.
         //输入：id，输出：像素位置
         // x.domain(orders.name);
-        var noworder = "name";
-        var noworderA = orders.name;
+        var noworder = "id";
+        var noworderA = orders.id;
 
         function get2darray(num) {
             let res = [];
@@ -183,7 +183,7 @@ export function draw(d, caiyang) {
             console.log(caryangm)
             return caryangm;
         }
-        let cmatrix = caiynag(matrix, orders.name, caiyang)
+        let cmatrix = caiynag(matrix, orders.id, caiyang)
         var datal = d3.range(cmatrix.length);
         //输入：id，输出：像素位置
         x.domain(datal);
@@ -216,7 +216,7 @@ export function draw(d, caiyang) {
                 .attr("dy", ".32em")
                 .attr("text-anchor", "end")
                 .attr("class", "notsee")
-                .text(function (d, i) { return nodes[i].name; });
+                .text(function (d, i) { return nodes[i].id; });
 
             var column = svg.selectAll(".column")
                 .data(matrix)
@@ -234,7 +234,7 @@ export function draw(d, caiyang) {
                 .attr("dy", ".32em")
                 .attr("text-anchor", "start")
                 .attr("class", "notsee")
-                .text(function (d, i) { return nodes[i].name; });
+                .text(function (d, i) { return nodes[i].id; });
 
             function row(row) {
                 var cell = d3.select(this).selectAll(".cell")
@@ -269,17 +269,21 @@ export function draw(d, caiyang) {
                 // if (typeof o === "function") {
                 //     o = o.call();
                 // }
-                let brushnode = new Set();
+                let brushnode = new Map();
                 for (let i = xx[0]*step; i <= Math.min(xx[1]*step,nodecnt); i++) {
                     // brushnode.push(nodes[o[i]])
-                    brushnode.add(nodes[noworderA[i]])
+                    brushnode.set(nodes[noworderA[i]].id,nodes[noworderA[i]].graphnode)
+                    
                 }
                 for (let i = yy[0]*step; i <= Math.min(yy[1]*step,nodecnt); i++) {
                     // brushnode.push(nodes[o[i]])
-                    brushnode.add(nodes[noworderA[i]])
+                    brushnode.set(nodes[noworderA[i]].id,nodes[noworderA[i]].graphnode)
                 }
-                emit("brushMatrix",brushnode)
-                console.log(brushnode)
+                // view.selectedNodes=brushnode
+                fn(brushnode)
+                
+                
+                // console.log(brushnode)
             }
 
             function mouseover(d, p) {
@@ -311,7 +315,7 @@ export function draw(d, caiyang) {
 
 
 
-        var currentOrder = 'name';
+        var currentOrder = 'id';
 
         function order(value) {
             var o = orders[value];
